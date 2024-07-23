@@ -4,13 +4,14 @@ import time
 import RPi.GPIO as GPIO
 import sys
 import subprocess
-import threading
+from threading import Thread
 
-# Set GPIO pin numbering mode to BOARD, which means pins are referenced by their physical location on the board.
+# Set GPIO pin numbering mode to BOARD, meaning pins are referenced by their physical location on the board.
 GPIO.setmode(GPIO.BOARD)
 
 # Define GPIO pins used in the application
 pin_numbers = [11, 13, 15, 29, 31, 37, 16]
+
 # Initialize each pin as an output pin
 for pin in pin_numbers:
     GPIO.setup(pin, GPIO.OUT)
@@ -30,7 +31,7 @@ def run_command(command, timeout=None):
         - error: Standard error of the command.
     """
     try:
-        # Start the command as a subprocess and capture the output and error
+        # Start the command as a subprocess and get output and error
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         # Wait for the command to complete within the timeout period, if specified
         output, error = process.communicate(timeout=timeout)
@@ -42,16 +43,17 @@ def run_command(command, timeout=None):
         output, error = process.communicate()
         return -1, output, error
 
-def process_gpio(pin):
+def process_gpio(pin, success_pins, failed_pins):
     """
-    Handles the operations for a single GPIO pin. Runs the initialization commands and
-    writes an image to the device.
+    Handles the operations for a single GPIO pin. Runs the initialization commands and writes an image to the device.
     
     Parameters:
     - pin: The GPIO pin number to process.
+    - success_pins: List to track successful pins.
+    - failed_pins: List to track failed pins.
     """
     GPIO.output(pin, 1)  # Set the current pin to high
-    time.sleep(0.5)  # Wait for 0.5 seconds
+    time.sleep(1)  # Wait for 1 second
     command_success = False  # Flag to check if the command was successful
     retries = 0  # Number of retries
     letter = 'a'  # Starting letter to check for devices
@@ -67,6 +69,7 @@ def process_gpio(pin):
         fileName = f'/dev/sd{letter}'
         if os.path.exists(fileName):
             command_success = True
+            success_pins.append(pin)
             print(f"Device found at {fileName} for pin {pin}")
         else:
             # Retry if the device is not found
@@ -83,6 +86,7 @@ def process_gpio(pin):
                 fileName = f'/dev/sd{letter}'
                 if os.path.exists(fileName):
                     command_success = True
+                    success_pins.append(pin)
                     print(f"Device found at {fileName} for pin {pin}")
                 else:
                     print(f"Retrying command for pin {pin} (Attempt {retries + 1})")
@@ -92,7 +96,7 @@ def process_gpio(pin):
     # After successful GPIO initialization, run the dd command
     if command_success:
         dd_command = "sudo dd bs=4M if=Zyrlo_2022_08_14_RC1.img of=/dev/sdb conv=fsync"
-        print(f"Running dd command for pin {pin}...")
+        print("Running dd command...")
         ret_code, dd_output, dd_error = run_command(dd_command)
         
         # Monitor the status of the dd command
@@ -100,13 +104,14 @@ def process_gpio(pin):
             status_command = "status=progress"
             ret_code, status_output, status_error = run_command(status_command)
             if ret_code == 0:
-                print(f"dd command completed successfully for pin {pin}")
+                print("dd command completed successfully")
                 break
             else:
-                print(f"Error during status check for pin {pin}: {status_error.decode()}")
-                print(f"Output during status check for pin {pin}: {status_output.decode()}")
+                print(f"Error during status check: {status_error.decode()}")
+                print(f"Output during status check: {status_output.decode()}")
             time.sleep(30)  # Wait before checking again
     else:
+        failed_pins.append(pin)
         print(f"Command failed on pin {pin} after 3 attempts")
 
 def buttonFunc():
@@ -115,16 +120,26 @@ def buttonFunc():
     """
     print("Button Pressed")
 
+    # Track successful and failed GPIO pins
+    success_pins = []
+    failed_pins = []
+
     # Create and start a thread for each GPIO pin
     threads = []
     for pin in pin_numbers:
-        thread = threading.Thread(target=process_gpio, args=(pin,))
+        thread = Thread(target=process_gpio, args=(pin, success_pins, failed_pins))
         thread.start()
         threads.append(thread)
 
     # Wait for all threads to complete
     for thread in threads:
         thread.join()
+
+    # Report which pins succeeded or failed
+    if success_pins:
+        print(f"Successful pins: {success_pins}")
+    if failed_pins:
+        print(f"Failed pins: {failed_pins}")
 
 def on_closing():
     """
