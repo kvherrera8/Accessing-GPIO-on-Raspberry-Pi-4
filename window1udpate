@@ -2,6 +2,7 @@ import tkinter as tk
 import os
 import time
 import RPi.GPIO as GPIO
+import sys
 
 GPIO.setmode(GPIO.BOARD)
 
@@ -31,9 +32,6 @@ def buttonFunc():
                 print(f"Retrying command for pin {pin} (Attempt {retries + 1})")
                 retries += 1
                 letter = chr(ord(letter) + 1)
-                 #chr = convert integar in function into character
-                #ord = return number rep into specfied character 'letter@
-                #Move to the next letter
             
             if command_success:
                 print(f"Command succeeded on pin {pin}")
@@ -44,13 +42,23 @@ def buttonFunc():
         else:
             break
 
+def on_closing():
+    GPIO.cleanup()
+    print("GPIO cleaned up")
+    sys.exit()  # Exit the program
+
 # Set up the GUI
 window = tk.Tk()
 window.geometry("800x800")
+window.protocol("WM_DELETE_WINDOW", on_closing)
 
 button = tk.Button(window, text="Run Reboot", command=buttonFunc, fg='white', bg='black')
 window.configure(bg='lightgrey')
 button.pack(padx=50, pady=50)
 
-window.mainloop()
-GPIO.cleanup()
+try:
+    window.mainloop()
+except KeyboardInterrupt:
+    print("KeyboardInterrupt caught, cleaning up GPIO and exiting")
+    GPIO.cleanup()
+    sys.exit()
