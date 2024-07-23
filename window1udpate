@@ -1,6 +1,7 @@
 import tkinter as tk
 import os
 import time
+from gpiozero import LED
 import RPi.GPIO as GPIO
 
 GPIO.setmode(GPIO.BOARD)
@@ -16,8 +17,8 @@ def buttonFunc():
     for pin in pin_numbers:
         GPIO.output(pin, 1)
         time.sleep(0.5)
-        command_success = False
-        retries = 0
+        command_success = False #command that will run in terminal
+        retries = 0 #the amount of times it will reboot, max of 2 times
         letter = 'a'
         
         while not command_success and retries < 2:
@@ -30,7 +31,10 @@ def buttonFunc():
             else:
                 print(f"Retrying command for pin {pin} (Attempt {retries + 1})")
                 retries += 1
-                letter = chr(ord(letter) + 1)  # Move to the next letter
+                letter = chr(ord(letter) + 1)
+                #chr = convert integar in function into character
+                #ord = return number rep into specfied character 'letter@
+                #Move to the next letter
             
             if command_success:
                 print(f"Command succeeded on pin {pin}")
@@ -45,10 +49,9 @@ def buttonFunc():
 window = tk.Tk()
 window.geometry("800x800")
 
-button = tk.Button(window, text="Run Command", command=buttonFunc)
-button.pack(padx=20, pady=20)
+button = tk.Button(window, text="Run Reboot", command=buttonFunc, fg='White', bg = 'black')
+window.configure(bg='lightgrey')
+button.pack(padx=50, pady=50)
 
-window.mainloop()
-
-# Cleanup GPIO settings after the GUI loop exits
 GPIO.cleanup()
+window.mainloop()
