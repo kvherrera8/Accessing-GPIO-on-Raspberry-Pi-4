@@ -4,7 +4,7 @@ import time
 import RPi.GPIO as GPIO
 import sys
 import subprocess
-import threading
+from threading import Thread
 
 # Set GPIO pin numbering mode to BOARD, meaning pins are referenced by their physical location on the board.
 GPIO.setmode(GPIO.BOARD)
