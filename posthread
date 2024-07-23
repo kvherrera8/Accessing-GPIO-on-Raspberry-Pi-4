@@ -9,7 +9,7 @@ from threading import Thread
 # Set GPIO pin numbering mode to BOARD, meaning pins are referenced by their physical location on the board.
 GPIO.setmode(GPIO.BOARD)
 
-# Define GPIO pins used in the application
+#GPIO pins physical location
 pin_numbers = [11, 13, 15, 29, 31, 37, 16]
 
 # Initialize each pin as an output pin
@@ -17,25 +17,17 @@ for pin in pin_numbers:
     GPIO.setup(pin, GPIO.OUT)
 
 def run_command(command, timeout=None):
-    """
-    Runs a shell command and captures its output. Optionally specify a timeout.
-    
-    Parameters:
-    - command: The shell command to run.
-    - timeout: The maximum time (in seconds) to wait for the command to complete (None for no timeout).
-    
-    Returns:
-    - A tuple (return_code, output, error):
-        - return_code: Exit code of the command (0 for success, non-zero for error).
-        - output: Standard output of the command.
-        - error: Standard error of the command.
-    """
+    """command: The shell command to run.
+       timeout: The maximum time (in seconds) to wait for the command to complete (None for no timeout)    
+       Returns:(return_code, output, error):
+       return_code: Exit code of the command (0 for success, non-zero for error)"""
     try:
-        # Start the command as a subprocess and get output and error
+        # start the command as a subprocess and get output and error
+        # subprocess is more flexible than os, since you can it can inspect output and errors that occur
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        # Wait for the command to complete within the timeout period, if specified
+        # wait for the command to complete within the timeout period, if specified
         output, error = process.communicate(timeout=timeout)
-        # Return the exit code, output, and error
+        # return the exit code, output, and error
         return process.returncode, output, error
     except subprocess.TimeoutExpired:
         # If the command times out, kill the process and return failure status
@@ -44,14 +36,10 @@ def run_command(command, timeout=None):
         return -1, output, error
 
 def process_gpio(pin, success_pins, failed_pins):
-    """
-    Handles the operations for a single GPIO pin. Runs the initialization commands and writes an image to the device.
-    
-    Parameters:
-    - pin: The GPIO pin number to process.
-    - success_pins: List to track successful pins.
-    - failed_pins: List to track failed pins.
-    """
+    """ pin: The GPIO pin number to process.
+        success_pins: List to track successful pins.
+        failed_pins: List to track failed pins."""
+
     GPIO.output(pin, 1)  # Set the current pin to high
     time.sleep(1)  # Wait for 1 second
     command_success = False  # Flag to check if the command was successful
