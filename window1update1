@@ -4,8 +4,9 @@ import time
 import RPi.GPIO as GPIO
 import sys
 import subprocess
+import threading
 
-# Set GPIO pin numbering mode to BOARD, which means pins are referenced by their physical location on the board.
+# Set GPIO pin numbering mode to BOARD, meaning pins are referenced by their physical location on the board.
 GPIO.setmode(GPIO.BOARD)
 
 # Define GPIO pins used in the application
@@ -15,50 +16,40 @@ for pin in pin_numbers:
     GPIO.setup(pin, GPIO.OUT)
 
 def run_command(command, timeout=None):
-    """
-    Runs a shell command and captures its output. Optionally specify a timeout.
-    
-    Parameters:
-    - command: The shell command to run.
-    - timeout: The maximum time (in seconds) to wait for the command to complete (None for no timeout).
-    
-    Returns:
-    - A tuple (return_code, output, error):
-        - return_code: Exit code of the command (0 for success, non-zero for error).
-        - output: Standard output of the command.
-        - error: Standard error of the command.
-    """
     try:
-        # Start the command as a subprocess and capture the output and error
+        # Start the command as a subprocess and get output and error
+        #subprocess is more flexible than os, since you can it can inspect output and errors that occur
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        # Wait for the command to complete within the timeout period, if specified
+        # wait for the command to complete within the timeout period, if specified
         output, error = process.communicate(timeout=timeout)
-        # Return the exit code, output, and error
+        # return the exit code, output, and error
         return process.returncode, output, error
     except subprocess.TimeoutExpired:
-        # If the command times out, kill the process and return failure status
+        # if the command times out, kill the process and return failure status
         process.kill()
         output, error = process.communicate()
         return -1, output, error
+ """Run a shell command and capture its output (you can specify a timeout if needed)
+    Parameters:
+     command: The shell command to run.
+     timeout: The maximum time (in seconds) to wait for the command to complete (None for no timeout).
+    Returns:(return_code, output, error):
+         return_code: Exit code of the command (0 for success, non-zero for error)."""
 
 def buttonFunc():
-    """
-    Function executed when the button is pressed. Initializes GPIO pins, runs commands to detect devices,
-    and writes an image file to the device.
-    """
     print("Button Pressed")
 
-    # Lists to track successful and failed GPIO pins
+    # track successful and failed GPIO pins
     success_pins = []
     failed_pins = []
 
     # Iterate over each GPIO pin
     for pin in pin_numbers:
-        GPIO.output(pin, 1)  # Set the current pin to high
-        time.sleep(0.5)  # Wait for 0.5 seconds
-        command_success = False  # Flag to check if the command was successful
-        retries = 0  # Number of retries
-        letter = 'a'  # Starting letter to check for devices
+        GPIO.output(pin, 1)  # set the current pin to high (1 = high, 0 = low)
+        time.sleep(1)  # wait for 1 second
+        command_success = False  # flag to check if the command was successful
+        retries = 0  # number of retries
+        letter = 'a'  # starting letter to check for devices
 
         # Attempt to run the command up to 2 times
         while not command_success and retries < 2:
@@ -75,12 +66,12 @@ def buttonFunc():
                 success_pins.append(pin)
                 print(f"Device found at {fileName} for pin {pin}")
             else:
-                # Retry if the device is not found
+                # retry if the device is not found
                 print(f"Retrying command for pin {pin} (Attempt {retries + 1})")
                 retries += 1
                 letter = chr(ord(letter) + 1)  # Move to the next letter
                 
-            # If command fails, run the rpiboot command again before final recheck
+            # if command fails, run the rpiboot command again before final recheck
             if not command_success and retries == 2:
                 os.system("sudo /home/pi/usbboot/rpiboot")
                 time.sleep(10)  # Wait again to give time for detection
@@ -92,16 +83,18 @@ def buttonFunc():
                         success_pins.append(pin)
                         print(f"Device found at {fileName} for pin {pin}")
                     else:
-                        print(f"Retrying command for pin {pin} (Attempt {retries + 1})")
+                       print(f"Retrying command for pin {pin} (Attempt {retries + 1})")
                         retries += 1
                         letter = chr(ord(letter) + 1)
 
-        # After successful GPIO initialization, run the dd command
+        # after successful GPIO initialization, run the dd command
         if command_success:
             dd_command = "sudo dd bs=4M if=Zyrlo_2022_08_14_RC1.img of=/dev/sdb conv=fsync"
             print("Running dd command...")
             ret_code, dd_output, dd_error = run_command(dd_command)
-            
+            #if ret_code == 0, then success, if != 0 then fail 
+            #dd_output == indo about progress or status of operation
+            #dd_error = problems encountered
             # Monitor the status of the dd command
             while True:
                 status_command = "status=progress"
@@ -124,9 +117,7 @@ def buttonFunc():
         print(f"Failed pins: {failed_pins}")
 
 def on_closing():
-    """
-    Clean up GPIO pins and exit the program when the window is closed.
-    """
+    #Clean up GPIO pins and exit the program when the window is closed.
     GPIO.cleanup()  # Clean up all GPIO settings
     print("GPIO cleaned up")
     sys.exit()  # Exit the program
@@ -134,7 +125,7 @@ def on_closing():
 # Set up the GUI
 window = tk.Tk()
 window.geometry("800x800")  # Set the window size
-window.protocol("WM_DELETE_WINDOW", on_closing)  # Handle window close event
+window.protocol("WM_DELETE_WINDOW", on_closing)  # close pressing 'X' on page 
 
 # Create a button to trigger the GPIO and command functions
 button = tk.Button(window, text="Run Reboot", command=buttonFunc, fg='white', bg='black')
