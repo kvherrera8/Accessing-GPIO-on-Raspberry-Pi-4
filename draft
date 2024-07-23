@@ -1,0 +1,90 @@
+import tkinter as tk
+import os
+import time
+import RPi.GPIO as GPIO
+import sys
+
+GPIO.setmode(GPIO.BOARD)
+
+# Define GPIO pins
+pin_numbers = [3, 5, 7, 11, 13, 15, 19]
+for pin in pin_numbers:
+    GPIO.setup(pin, GPIO.OUT)
+
+def buttonFunc():
+    print("Button Pressed")
+    
+    for pin in pin_numbers:
+        GPIO.output(pin, 1)
+        time.sleep(0.5) 
+        command_success = False #command that runs in terminal isnt run 
+        retries = 0 # number of times it reboots (max number of 2 and then break out of while loop)
+        letter = 'a' #begin with letter 'a'
+        
+        while not command_success and retries < 2:# 2 is the most amount of retries 
+            os.system("sudo /home/pi/usbboot/rpiboot") #command that runs in command prompt
+            
+            time.sleep(10) #wait 10 seconds 
+            
+            fileName = f'/dev/sd{letter}'
+            if os.path.exists(fileName):
+                command_success = True
+                print(f"Device found at {fileName}")
+                break
+            else:
+                print(f"Retrying command for pin {pin} (Attempt {retries + 1})")
+                retries += 1
+                letter = chr(ord(letter) + 1)
+                #chr = convert integar in function into character
+                #ord = return number rep into specfied character 'letter'
+                #Move to the next letter
+            if not command_success:
+                os.system('sudo /home/pi/usboot/rpiboot')
+                time.sleep(10)
+                letter = 'a'
+                while not command_success and retries < 2:
+                    fileName = f' /dev/sd{letter}'
+                    if os.path.exists(fileName):
+                        command_success = True
+                        print(f'Device foud at {fileName}')
+                    else:
+                        print(f'Retrying command for pin {pin} Final Attmempt')
+                        retries += 1
+                        letter = chr(ord(letter)+1)
+            if not command_success:
+                print(f'Error failed on pin {pin} after 2 attempts')
+            else:
+                break
+            
+('''  		 if command_success:
+                print(f"Command succeeded on pin {pin}")
+                break
+       
+
+        if not command_success:
+            print(f"Error: failed on pin {pin} after 2 attempts")
+        else:
+            break
+ ''')
+def on_closing():
+    GPIO.cleanup()
+    print("GPIO cleaned up")
+    sys.exit()  # Exit the program
+
+
+# Set up the GUI
+window = tk.Tk()
+window.geometry("800x800")
+window.protocol("WM_DELETE_WINDOW", on_closing) #user trying to close window 'X' on window
+
+button = tk.Button(window, text="Run Reboot", command=buttonFunc, fg='white', bg='black')
+window.configure(bg='lightgrey')
+button.pack(padx=50, pady=50)
+
+try:
+    window.mainloop()
+except KeyboardInterrupt: #handle interruptions from the keyboard, 'Ctrl+C'
+    print("KeyboardInterrupt, cleaning up GPIO and exiting")
+    GPIO.cleanup()
+    sys.exit() #exit out of all windows and commands 
+
