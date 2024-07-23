@@ -65,3 +65,8 @@ except KeyboardInterrupt:
     print("KeyboardInterrupt caught, cleaning up GPIO and exiting")
     GPIO.cleanup()
     sys.exit()
+
+
+#sudo dd bs=4M if=Zyrlo_2022_08_14_RC1.img of=/dev/sdb conv=fsync
+#status=progress
+#must run status=progess to see how much is being loaded into it, and then you determine how program can determine progress made
