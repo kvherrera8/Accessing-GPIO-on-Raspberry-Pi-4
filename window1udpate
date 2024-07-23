@@ -5,6 +5,7 @@ import RPi.GPIO as GPIO
 import sys
 
 GPIO.setmode(GPIO.BOARD)
+GPIO.setwarnings(False)  # Disable warnings
 
 # Define GPIO pins
 pin_numbers = [3, 5, 7, 11, 13, 15, 19]
