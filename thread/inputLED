@@ -5,137 +5,124 @@ import RPi.GPIO as GPIO
 import sys
 import subprocess
 from threading import Thread
-#import logging
 
 # Set GPIO pin numbering mode to BOARD, meaning pins are referenced by their physical location on the board.
 GPIO.setmode(GPIO.BOARD)
 
-#GPIO pins used in the application
-pin_numbers = [11, 13, 15, 29, 31, 37, 16]
-# Initialize each pin as an output pin
-for pin in pin_numbers:
+# GPIO output pins used in the application
+output_pin_numbers = [11, 13, 15, 29, 31, 37, 16]
+# GPIO input pins for LEDs
+input_pin_numbers = [8, 10, 19, 33, 35, 18, 7]
+
+# Initialize each output pin
+for pin in output_pin_numbers:
     GPIO.setup(pin, GPIO.OUT)
+
+# Initialize each input pin
+for pin in input_pin_numbers:
+    GPIO.setup(pin, GPIO.IN)
 
 def run_command(command, timeout=None):
     try:
-        # Start the command as a subprocess and get output and error
-        #subprocess is more flexible than os, since you can it can inspect output and errors that occur
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        # wait for the command to complete within the timeout period, if specified
         output, error = process.communicate(timeout=timeout)
-        # return the exit code, output, and error
         return process.returncode, output, error
     except subprocess.TimeoutExpired:
-        # if the command times out, kill the process and return failure status
         process.kill()
         output, error = process.communicate()
         return -1, output, error
-    #Run a shell command and capture its output (you can specify a timeout if needed)
-    #Parameters: command: The shell command to run.
-    #timeout: The maximum time (in seconds) to wait for the command to complete (None for no timeout).
-    #Returns:(return_code, output, error):
-    #return_code: Exit code of the command (0 for success, non-zero for error)."""
+
+def handle_pin(pin):
+    GPIO.output(pin, 1)
+    time.sleep(1)
+    command_success = False
+    retries = 0
+    letter = 'a'
+
+    while not command_success and retries < 2:
+        os.system("sudo /home/pi/usbboot/rpiboot")
+        time.sleep(10)
+
+        fileName = f'/dev/sd{letter}'
+        if os.path.exists(fileName):
+            command_success = True
+            print(f"Device found at {fileName} for pin {pin}")
+        else:
+            print(f"Retrying command for pin {pin} (Attempt {retries + 1})")
+            retries += 1
+            letter = chr(ord(letter) + 1)
+
+        if not command_success and retries == 2:
+            os.system("sudo /home/pi/usbboot/rpiboot")
+            time.sleep(10)
+            letter = 'a'
+            while not command_success and retries < 3:
+                fileName = f'/dev/sd{letter}'
+                if os.path.exists(fileName):
+                    command_success = True
+                    print(f"Device found at {fileName} for pin {pin}")
+                else:
+                    print(f"Retrying command for pin {pin} (Attempt {retries + 1})")
+                    retries += 1
+                    letter = chr(ord(letter) + 1)
+
+    if command_success:
+        dd_command = "sudo dd bs=4M if=Zyrlo_2022_08_14_RC1.img of=/dev/sdb conv=fsync"
+        print("Running dd command...")
+        ret_code, dd_output, dd_error = run_command(dd_command)
+        while True:
+            status_command = "status=progress"
+            ret_code, status_output, status_error = run_command(status_command)
+            if ret_code == 0:
+                print("dd command completed successfully")
+                break
+            else:
+                print(f"Error during status check: {status_error.decode()}")
+                print(f"Output during status check: {status_output.decode()}")
+            time.sleep(30)
+    else:
+        print(f"Command failed on pin {pin} after 3 attempts")
 
 def buttonFunc():
-    print("Button Pressed")
+    threads = []
 
-    # track successful and failed GPIO pins
-    success_pins = []
-    failed_pins = []
+    # Check the state of input pins
+    input_states = [GPIO.input(pin) for pin in input_pin_numbers]
 
-    # Iterate over each GPIO pin
-    for pin in pin_numbers:
-        GPIO.output(pin, 1)  # set the current pin to high (1 = high, 0 = low)
-        time.sleep(1)  # wait for 1 second
-        command_success = False  # flag to check if the command was successful
-        retries = 0  # number of retries
-        letter = 'a'  # starting letter to check for devices
+    # If any input pin is HIGH, start the process
+    if any(input_states):
+        # Set output pins to HIGH
+        for pin in output_pin_numbers:
+            GPIO.output(pin, GPIO.HIGH)
+        
+        for pin in output_pin_numbers:
+            thread = Thread(target=handle_pin, args=(pin,))
+            threads.append(thread)
+            thread.start()
 
-        # Attempt to run the command up to 2 times
-        while not command_success and retries < 2:
-            # Run the rpiboot command to initialize devices
-            os.system("sudo /home/pi/usbboot/rpiboot")
-
-            # Wait 10 seconds for device detection
-            time.sleep(10)
-            
-            # Check if the device file exists for the current letter
-            fileName = f'/dev/sd{letter}'
-            if os.path.exists(fileName):
-                command_success = True
-                success_pins.append(pin)
-                print(f"Device found at {fileName} for pin {pin}")
-            else:
-                # retry if the device is not found
-                print(f"Retrying command for pin {pin} (Attempt {retries + 1})")
-                retries += 1
-                letter = chr(ord(letter) + 1)  # Move to the next letter
-                
-            # if command fails, run the rpiboot command again before final recheck
-            if not command_success and retries == 2:
-                os.system("sudo /home/pi/usbboot/rpiboot")
-                time.sleep(10)  # Wait again to give time for detection
-                letter = 'a'  # Reset letter to 'a'
-                while not command_success and retries < 3:  # Allow one final attempt
-                    fileName = f'/dev/sd{letter}'
-                    if os.path.exists(fileName):
-                        command_success = True
-                        success_pins.append(pin)
-                        print(f"Device found at {fileName} for pin {pin}")
-                    else:
-                       print(f"Retrying command for pin {pin} (Attempt {retries + 1})")
-                       retries += 1
-                       letter = chr(ord(letter) + 1)
-
-        # after successful GPIO initialization, run the dd command
-        if command_success:
-            dd_command = "sudo dd bs=4M if=Zyrlo_2022_08_14_RC1.img of=/dev/sdb conv=fsync"
-            print("Running dd command...")
-            ret_code, dd_output, dd_error = run_command(dd_command)
-            #if ret_code == 0, then success, if != 0 then fail 
-            #dd_output == indo about progress or status of operation
-            #dd_error = problems encountered
-            # Monitor the status of the dd command
-            while True:
-                status_command = "status=progress"
-                ret_code, status_output, status_error = run_command(status_command)
-                if ret_code == 0:
-                    print("dd command completed successfully")
-                    break
-                else:
-                    print(f"Error during status check: {status_error.decode()}")
-                    print(f"Output during status check: {status_output.decode()}")
-                time.sleep(30)  # Wait before checking again
-        else:
-            failed_pins.append(pin)
-            print(f"Command failed on pin {pin} after 3 attempts")
-
-    # Report which pins succeeded or failed
-    if success_pins:
-        print(f"Successful pins: {success_pins}")
-    if failed_pins:
-        print(f"Failed pins: {failed_pins}")
+        for thread in threads:
+            thread.join()
+    else:
+        # Set output pins to LOW if no input pins are HIGH
+        for pin in output_pin_numbers:
+            GPIO.output(pin, GPIO.LOW)
 
 def on_closing():
-    #Clean up GPIO pins and exit the program when the window is closed.
-    GPIO.cleanup()  # Clean up all GPIO settings
+    GPIO.cleanup()
     print("GPIO cleaned up")
-    sys.exit()  # Exit the program
+    sys.exit()
 
-# Set up the GUI
 window = tk.Tk()
-window.geometry("800x800")  # Set the window size
-window.protocol("WM_DELETE_WINDOW", on_closing)  # close pressing 'X' on page 
+window.geometry("800x800")
+window.protocol("WM_DELETE_WINDOW", on_closing)
 
-# Create a button to trigger the GPIO and command functions
 button = tk.Button(window, text="Run Reboot", command=buttonFunc, fg='white', bg='black')
-window.configure(bg='lightgrey')  # Set the background color of the window
-button.pack(padx=50, pady=50)  # Add padding around the button
+window.configure(bg='lightgrey')
+button.pack(padx=50, pady=50)
 
-# Run the GUI event loop
 try:
     window.mainloop()
 except KeyboardInterrupt:
     print("KeyboardInterrupt caught, cleaning up GPIO and exiting")
-    GPIO.cleanup()  # Clean up GPIO settings on keyboard interrupt
-    sys.exit()  # Exit the program
+    GPIO.cleanup()
+    sys.exit()
