@@ -28,9 +28,9 @@ def ONOFF(in_pin, out_pin, onoff_state): # status of buttons
     max_iter = 3
     if(onoff_state) :
         while(GPIO.input(in_pin) != onoff_state) :
-            GPIO.output(1)
+            GPIO.output(out_pin, 1)
             time.sleep(0.1)
-            GPIO.output(0)
+            GPIO.output(out_pin, 0)
             time.sleep(0.5)
             if iter > max_iter:
                 return -1            
@@ -72,8 +72,8 @@ def buttonProc():
         for pin in output_pin_numbers:
             GPIO.output(pin, 1) # can use GPIO.HIGH or 1 (voltage present)
         
-        for pin in output_pin_numbers: 
-            thread = Thread(target=handle_pin, args=(pin, success_pins, failed_pins)) #handle_pin as the target
+        for i, pin_pair in enumerate(g_pins): 
+            thread = Thread(target=handle_pin, args=(i, pin_pair[0], pin_pair[1], success_pins, failed_pins)) #handle_pin as the target
             threads.append(thread)
             thread.start()
 
@@ -94,8 +94,8 @@ def buttonFunc(): #clicking button highlighted/unhighlighted
     x = Thread(target=buttonProc)
     x.start()
 
-def handle_pin(pin, success_pins, failed_pins): #determine status of pins
-    GPIO.output(pin, 1) #set pins to high (high = 1)
+def handle_pin(index, in_pin, out_pin, success_pins, failed_pins): #determine status of pins
+    GPIO.output(out_pin, 1) #set pins to high (high = 1)
     time.sleep(1) #wait for 1 sec
     command_success = False #track if command was successful
     retries = 0 #amount of times it command was ran again
@@ -103,28 +103,30 @@ def handle_pin(pin, success_pins, failed_pins): #determine status of pins
 
     while not command_success and retries < 2: #try to initialize the device up to 2 times 
         os.system("/home/pi/rpiboot_wraper.sh")
+        update_progress(index, 30) # update to 30% after running rpiboot_wraper.sh
         time.sleep(10) # wait 10 secs 
 
         fileName = f'/dev/sd{letter}' #check if files exists for current letter
         if os.path.exists(fileName):
             command_success = True #command was successful
-            print(f"\n Device found at {fileName} for pin {pin}")
+            print(f"\n Device found at {fileName} for pin {out_pin}")
         else:
-            print(f"\n Retrying command for pin {pin} (Attempt {retries + 1})")
+            print(f"\n Retrying command for pin {out_pin} (Attempt {retries + 1})")
             retries += 1
             letter = chr(ord(letter) + 1) #move on to letter 'b' after 'a'
 
         if not command_success and retries == 2: #after 2 times of failing, and try 1 more time
             os.system("/home/pi/rpiboot_wraper.sh")
+            update_progress(index, 30) # update to 30% after running rpiboot_wraper.sh
             time.sleep(10) #wait 10 secs 
             letter = 'a' #start at letter 'a' again 
             while not command_success and retries < 3: #last attempt
                 fileName = f'/dev/sd{letter}'
                 if os.path.exists(fileName):
                     command_success = True
-                    print(f"\n Device found at {fileName} for pin {pin}")
+                    print(f"\n Device found at {fileName} for pin {out_pin}")
                 else:
-                    print(f"\n Retrying command for pin {pin} (Attempt {retries + 1})")
+                    print(f"\n Retrying command for pin {out_pin} (Attempt {retries + 1})")
                     retries += 1
                     letter = chr(ord(letter) + 1)
 
@@ -132,22 +134,24 @@ def handle_pin(pin, success_pins, failed_pins): #determine status of pins
         dd_command = "sudo dd bs=4M if=Zyrlo_2022_08_14_RC1.img of=/dev/sdb conv=fsync"
         print("\n Running dd command...")
         ret_code, dd_output, dd_error = run_command(dd_command)
+        update_progress(index, 60) # update to 60% after starting dd command
 
         while True: #monitor dd command
             status_command = "status=progress"
             ret_code, status_output, status_error = run_command(status_command)
             if ret_code == 0: # 0 = successful
                 print("\n dd command completed successfully")
+                update_progress(index, 100) # update to 100% after dd command completes
                 break
             else:
                 print(f"\n Error during status check: {status_error.decode()}")
                 print(f"\n Output during status check: {status_output.decode()}")
             time.sleep(30) #wait 30 seconds
 
-        success_pins.append(pin) #successful pins that programmed 
+        success_pins.append(out_pin) #successful pins that programmed 
     else:
-        print(f"\n Command failed on pin {pin} after 3 attempts") #failed pins afer 3 tries 
-        failed_pins.append(pin)
+        print(f"\n Command failed on pin {out_pin} after 3 attempts") #failed pins afer 3 tries 
+        failed_pins.append(out_pin)
 
 def on_closing():
     GPIO.cleanup() #cleanup ALL GPIO settings
@@ -160,16 +164,20 @@ window.geometry("800x800") #set size of window
 window.protocol("WM_DELETE_WINDOW", on_closing) #close pressing 'X' on page
 window.configure(bg='lightgrey') #background color of window 
 
-progress_label = tk.Label(window, text="Progress", bg='lightgrey')
-progress_label.pack(pady=10)
-progress_bar = ttk.Progressbar(window, orient='horizontal', length=400, mode='determinate')
-progress_bar.pack(pady=20)
+progress_bars = {}
+
+for i, pin_pair in enumerate(g_pins):
+    label = tk.Label(window, text=f"Progress for pin pair {pin_pair[0]} and {pin_pair[1]}", bg='lightgrey')
+    label.pack(pady=10)
+    progress_bar = ttk.Progressbar(window, orient='horizontal', length=400, mode='determinate')
+    progress_bar.pack(pady=20)
+    progress_bars[i] = progress_bar
 
 button = tk.Button(window, text="Run Reboot", command=buttonFunc, fg='white', bg='black') #creating button
 button.pack(padx=50, pady=50) #add padding around the button
 
-def update_progress(value):
-    progress_bar['value'] = value
+def update_progress(index, value):
+    progress_bars[index]['value'] = value
     window.update_idletasks()
 
 try: # Run the GUI event loop
