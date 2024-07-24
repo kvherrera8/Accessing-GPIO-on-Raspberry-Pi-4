@@ -5,14 +5,15 @@ import RPi.GPIO as GPIO
 import sys
 import subprocess
 from threading import Thread
+#import logging
 
-# Set GPIO pin numbering mode to BOARD, meaning pins are referenced by their physical location on the board.
+# Set GPIO pin numbering mode to BOARD, referenced by their physical location on the board.
 GPIO.setmode(GPIO.BOARD)
 
 # GPIO output pins used in the application
-output_pin_numbers = [11, 13, 15, 29, 31, 37, 16]
+output_pin_numbers = [11, 13, 15, 29, 31, 37, 16] # CM4
 # GPIO input pins for LEDs
-input_pin_numbers = [8, 10, 19, 33, 35, 18, 7]
+input_pin_numbers = [8, 10, 19, 33, 35, 18, 7] # LEDs
 
 # Initialize each output pin
 for pin in output_pin_numbers:
@@ -24,13 +25,21 @@ for pin in input_pin_numbers:
 
 def run_command(command, timeout=None):
     try:
+        # Start the command as a subprocess and get output and error
+        #subprocess is more flexible than os, since you can it can inspect output and errors that occur
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, error = process.communicate(timeout=timeout)
         return process.returncode, output, error
     except subprocess.TimeoutExpired:
+#if the command times out, kill the process and return failure status
         process.kill()
         output, error = process.communicate()
         return -1, output, error
+    #Run a shell command and capture its output (you can specify a timeout if needed)
+    #Parameters: command: The shell command to run.
+    #timeout: The maximum time (in seconds) to wait for the command to complete (None for no timeout).
+    #Returns:(return_code, output, error):
+    #return_code: Exit code of the command (0 for success, non-zero for error)."""
 
 def handle_pin(pin):
     GPIO.output(pin, 1)
