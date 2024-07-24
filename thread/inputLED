@@ -5,15 +5,14 @@ import RPi.GPIO as GPIO
 import sys
 import subprocess
 from threading import Thread
-#import logging
 
-# Set GPIO pin numbering mode to BOARD, referenced by their physical location on the board.
+# Set GPIO pin numbering mode to BOARD, meaning pins are referenced by their physical location on the board.
 GPIO.setmode(GPIO.BOARD)
 
 # GPIO output pins used in the application
-output_pin_numbers = [11, 13, 15, 29, 31, 37, 16] # CM4
+output_pin_numbers = [11, 13, 15, 29, 31, 37, 16]
 # GPIO input pins for LEDs
-input_pin_numbers = [8, 10, 19, 33, 35, 18, 7] # LEDs
+input_pin_numbers = [8, 10, 19, 33, 35, 18, 7]
 
 # Initialize each output pin
 for pin in output_pin_numbers:
@@ -25,23 +24,15 @@ for pin in input_pin_numbers:
 
 def run_command(command, timeout=None):
     try:
-        # Start the command as a subprocess and get output and error
-        #subprocess is more flexible than os, since you can it can inspect output and errors that occur
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, error = process.communicate(timeout=timeout)
         return process.returncode, output, error
     except subprocess.TimeoutExpired:
-#if the command times out, kill the process and return failure status
         process.kill()
         output, error = process.communicate()
         return -1, output, error
-    #Run a shell command and capture its output (you can specify a timeout if needed)
-    #Parameters: command: The shell command to run.
-    #timeout: The maximum time (in seconds) to wait for the command to complete (None for no timeout).
-    #Returns:(return_code, output, error):
-    #return_code: Exit code of the command (0 for success, non-zero for error)."""
 
-def handle_pin(pin):
+def handle_pin(pin, success_pins, failed_pins):
     GPIO.output(pin, 1)
     time.sleep(1)
     command_success = False
@@ -89,11 +80,15 @@ def handle_pin(pin):
                 print(f"Error during status check: {status_error.decode()}")
                 print(f"Output during status check: {status_output.decode()}")
             time.sleep(30)
+        success_pins.append(pin)
     else:
         print(f"Command failed on pin {pin} after 3 attempts")
+        failed_pins.append(pin)
 
 def buttonFunc():
     threads = []
+    success_pins = []
+    failed_pins = []
 
     # Check the state of input pins
     input_states = [GPIO.input(pin) for pin in input_pin_numbers]
@@ -105,12 +100,18 @@ def buttonFunc():
             GPIO.output(pin, GPIO.HIGH)
         
         for pin in output_pin_numbers:
-            thread = Thread(target=handle_pin, args=(pin,))
+            thread = Thread(target=handle_pin, args=(pin, success_pins, failed_pins))
             threads.append(thread)
             thread.start()
 
         for thread in threads:
             thread.join()
+        
+        # Report successful and failed pins
+        if success_pins:
+            print(f"Successful pins: {success_pins}")
+        if failed_pins:
+            print(f"Failed pins: {failed_pins}")
     else:
         # Set output pins to LOW if no input pins are HIGH
         for pin in output_pin_numbers:
