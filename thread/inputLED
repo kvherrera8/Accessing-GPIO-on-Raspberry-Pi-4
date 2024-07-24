@@ -10,19 +10,19 @@ from threading import Thread
 # Set GPIO pin numbering mode to BOARD, meaning pins are referenced by their physical location on the board.
 GPIO.setmode(GPIO.BOARD)
 
-# GPIO output pins used in the application
-output_pin_numbers = [11, 13, 15, 29, 31, 37, 16]
-
 # GPIO input pins for LEDs
 input_pin_numbers = [8, 10, 19, 33, 35, 18, 7]
 
-# Initialize each output pin
-for pin in output_pin_numbers:
-    GPIO.setup(pin, GPIO.OUT)
+# GPIO output pins used in the application
+output_pin_numbers = [11, 13, 15, 29, 31, 37, 16]
 
 # Initialize each input pin
 for pin in input_pin_numbers:
     GPIO.setup(pin, GPIO.IN)
+
+# Initialize each output pin
+for pin in output_pin_numbers:
+    GPIO.setup(pin, GPIO.OUT)
 
 def run_command(command, timeout=None):
     try:
