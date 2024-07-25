@@ -1,11 +1,11 @@
-import tkinter as tk  # Import tkinter module with alias 'tk'
-from tkinter import ttk  # Import ttk submodule from tkinter for themed widgets
-import os  # Import os module to interact with the operating system
-import time  # Import time module to handle time-related tasks
-import RPi.GPIO as GPIO  # Import RPi.GPIO module and alias it as GPIO
-import sys  # Import sys module for system-specific parameters and functions
-import subprocess  # Import subprocess module to spawn new processes and connect to their input/output/error pipes
-from threading import Thread  # Import Thread class from threading module to create and manage threads
+import tkinter as tk
+from tkinter import ttk  #for themed widgets (used progess bar)
+import os 
+import time  
+import RPi.GPIO as GPIO  
+import sys  
+import subprocess  #spawn new processes and connect to their input/output/error pipes
+from threading import Thread  #to create and manage threads
 
 # Initialize GPIO
 def setup_gpio():
