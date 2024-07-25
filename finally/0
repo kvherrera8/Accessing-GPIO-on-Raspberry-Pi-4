@@ -80,7 +80,9 @@ def buttonProc():
                         if ret_code == 0:
                             print("\n dd command completed successfully")
                             update_progress(i, 100)
-                            break
+                            time.sleep(5)  # Wait for 5 seconds
+                            os.system("sudo reboot")  # Log out and reboot
+                            break  # Exit the loop
                         else:
                             print(f"\n Error during status check: {status_error.decode()}")
                             print(f"\n Output during status check: {status_output.decode()}")
