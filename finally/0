@@ -1,29 +1,17 @@
-Exception in Tkinter callback
-Traceback (most recent call last):
-  File "/usr/lib/python3.11/tkinter/__init__.py", line 1948, in __call__
-    return self.func(*args)
-           ^^^^^^^^^^^^^^^^
-  File "/home/pi/window1.py", line 155, in <lambda>
-    button = tk.Button(window, text="Run Reboot", command=lambda: buttonProc(g_pins, output_pin_numbers, progress_bars, status_labels), fg='white', bg='black')
-                                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/pi/window1.py", line 124, in buttonProc
-    input_states = [GPIO.input(pin) for pin in input_pin_numbers]
-                                               ^^^^^^^^^^^^^^^^^
-NameError: name 'input_pin_numbers' is not defined
-
-import tkinter as tk
-from tkinter import ttk  #for themed widgets (used progess bar)
-import os 
-import time  
-import RPi.GPIO as GPIO  
-import sys  
-import subprocess  #spawn new processes and connect to their input/output/error pipes
-from threading import Thread  #to create and manage threads
+import tkinter as tk  # Import tkinter module with alias 'tk'
+from tkinter import ttk  # Import ttk submodule from tkinter for themed widgets
+import os  # Import os module to interact with the operating system
+import time  # Import time module to handle time-related tasks
+import RPi.GPIO as GPIO  # Import RPi.GPIO module and alias it as GPIO
+import sys  # Import sys module for system-specific parameters and functions
+import subprocess  # Import subprocess module to spawn new processes and connect to their input/output/error pipes
+from threading import Thread  # Import Thread class from threading module to create and manage threads
 
 # Initialize GPIO
 def setup_gpio():
     GPIO.setmode(GPIO.BOARD)  # Set GPIO pin numbering mode to BOARD
 
+    global input_pin_numbers
     input_pin_numbers = [8, 10, 19, 33, 35, 18, 7]  # GPIO input pins for LEDs
     for pin in input_pin_numbers:
         GPIO.setup(pin, GPIO.IN)  # Set each pin as an input
@@ -160,6 +148,7 @@ def buttonProc(g_pins, output_pin_numbers, progress_bars, status_labels):
 
 # Setup GUI
 def setup_gui():
+    global window
     window = tk.Tk()
     window.geometry("800x800")
     window.protocol("WM_DELETE_WINDOW", on_closing)
@@ -195,7 +184,7 @@ def on_closing():
 g_pins, output_pin_numbers = setup_gpio()
 progress_bars = {}
 status_labels = {}
-window = setup_gui()
+setup_gui()
 
 try:
     window.mainloop()
