@@ -171,18 +171,23 @@ window.configure(bg='lightgrey')  # Set background color of window
 progress_bars = {}  # Dictionary to store progress bars
 status_labels = {}  # Dictionary to store status labels
 
-for i, pin_pair in enumerate(g_pins):  # Create a progress bar and status label for each pin pair
-    label = tk.Label(window, text=f"Progress for pin pair {pin_pair[0]} and {pin_pair[1]}", bg='lightgrey')  # Create a label for each progress bar
-    label.pack(pady=10)  # Add padding around the label
-    progress_bar = ttk.Progressbar(window, orient='horizontal', length=400, mode='determinate')  # Create a progress bar
-    progress_bar.pack(pady=20)  # Add padding around the progress bar
-    progress_bars[i] = progress_bar  # Add progress bar to dictionary
-    status_label = tk.Label(window, text=f"Status for pin pair {pin_pair[0]} and {pin_pair[1]}", bg='lightgrey')  # Create a status label for each pin pair
-    status_label.pack(pady=10)  # Add padding around the status label
-    status_labels[i] = status_label  # Add status label to dictionary
-
 button = tk.Button(window, text="Run Reboot", command=buttonFunc, fg='white', bg='black')  # Create a button
-button.pack(padx=50, pady=50)  # Add padding around the button
+button.pack(pady=10)  # Add padding around the button
+
+for i, pin_pair in enumerate(g_pins):  # Create a progress bar and status label for each pin pair
+    frame = tk.Frame(window, bg='lightgrey')  # Create a frame for each pin pair
+    frame.pack(anchor='w', padx=20, pady=5)  # Pack the frame to the left with padding
+
+    label = tk.Label(frame, text=f"Progress for pin pair {pin_pair[0]} and {pin_pair[1]}", bg='lightgrey')  # Create a label for each progress bar
+    label.pack(side='left', pady=10)  # Add padding around the label
+
+    progress_bar = ttk.Progressbar(frame, orient='horizontal', length=400, mode='determinate')  # Create a progress bar
+    progress_bar.pack(side='left', padx=20)  # Add padding around the progress bar
+    progress_bars[i] = progress_bar  # Add progress bar to dictionary
+
+    status_label = tk.Label(frame, text=f"Status for pin pair {pin_pair[0]} and {pin_pair[1]}", bg='lightgrey')  # Create a status label for each pin pair
+    status_label.pack(side='left', pady=10)  # Add padding around the status label
+    status_labels[i] = status_label  # Add status label to dictionary
 
 # Function to update progress bar
 def update_progress(index, value):
