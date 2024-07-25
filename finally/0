@@ -1,3 +1,21 @@
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "/usr/lib/python3.11/tkinter/__init__.py", line 1948, in __call__
+    return self.func(*args)
+           ^^^^^^^^^^^^^^^^
+  File "/home/pi/window1.py", line 157, in <lambda>
+    button = tk.Button(window, text="Run Reboot", command=lambda: buttonProc(g_pins, output_pin_numbers, progress_bars, status_labels), fg='white', bg='black')
+                                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/pi/window1.py", line 137, in buttonProc
+    thread.join()
+  File "/usr/lib/python3.11/threading.py", line 1112, in join
+    self._wait_for_tstate_lock()
+  File "/usr/lib/python3.11/threading.py", line 1132, in _wait_for_tstate_lock
+    if lock.acquire(block, timeout):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
 import tkinter as tk  # Import tkinter module with alias 'tk'
 from tkinter import ttk  # Import ttk submodule from tkinter for themed widgets
 import os  # Import os module to interact with the operating system
