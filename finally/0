@@ -190,12 +190,12 @@ def update_progress(index, value):
     progress_bars[index]['value'] = value
     window.update_idletasks()
 
-def update_star_colors():
+def update_star_colors(): #star by progress bar
     for i, pin_pair in enumerate(g_pins):
-        if GPIO.input(pin_pair[0]) == GPIO.HIGH:
+        if GPIO.input(pin_pair[0]) == GPIO.HIGH: #when pins detect high/True/1 (voltage) display green
             star_labels[i].config(fg='green')
         else:
-            star_labels[i].config(fg='red')
+            star_labels[i].config(fg='red') #when pins detect low/False/0 (no voltage) display red
     window.after(500, update_star_colors)
 
 update_star_colors()
