@@ -82,6 +82,7 @@ def buttonProc():
                             update_progress(i, 100)
                             time.sleep(5)  # Wait for 5 seconds
                             os.system("sudo reboot")  # Log out and reboot
+                            window.destroy()  # Close the GUI window
                             break  # Exit the loop
                         else:
                             print(f"\n Error during status check: {status_error.decode()}")
