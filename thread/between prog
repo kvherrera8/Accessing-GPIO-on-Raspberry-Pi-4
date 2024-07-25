@@ -136,12 +136,12 @@ def handle_pin(index, in_pin, out_pin, success_pins, failed_pins):
     if command_success:  # If command is successful
         dd_command = "sudo dd bs=4M if=Zyrlo_2022_08_14_RC1.img of=/dev/sdb conv=fsync"  # Define dd command
         print("\n Running dd command...")
-        ret_code, dd_output, dd_error = run_command(dd_command)  # Run the dd command
         update_progress(index, 60)  # Update progress bar to 60%
+        ret_code, dd_output, dd_error = run_command(dd_command)  # Run dd command
 
         while True:  # Monitor dd command
             status_command = "status=progress"  # Define status command
-            ret_code, status_output, status_error = run_command(status_command)  # Run the status command
+            ret_code, status_output, status_error = run_command(status_command)  # Run status command
             if ret_code == 0:  # If status command is successful
                 print("\n dd command completed successfully")
                 break  # Exit the loop
