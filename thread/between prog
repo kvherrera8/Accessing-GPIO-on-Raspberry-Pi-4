@@ -11,12 +11,12 @@ from threading import Thread  # Import Thread class from threading module to cre
 GPIO.setmode(GPIO.BOARD)
 
 # List of GPIO input pins for LEDs
-input_pin_numbers = [8, 10, 19, 33, 35, 18, 7]  
+input_pin_numbers = [8, 10, 19, 33, 35, 18, 7]
 for pin in input_pin_numbers:  # Initialize each input pin
     GPIO.setup(pin, GPIO.IN)  # Set each pin in input_pin_numbers as an input
 
 # List of GPIO output pins used for CM4
-output_pin_numbers = [11, 13, 15, 29, 31, 37, 16]  
+output_pin_numbers = [11, 13, 15, 29, 31, 37, 16]
 for pin in output_pin_numbers:  # Initialize each output pin
     GPIO.setup(pin, GPIO.OUT)  # Set each pin in output_pin_numbers as an output
 
@@ -42,8 +42,8 @@ def ONOFF(in_pin, out_pin, onoff_state):
         return 0  # Return success
 
 # Turn off all pins
-for pin in g_pins:  
-   ONOFF(pin[0], pin[1], False)
+for pin in g_pins:
+    ONOFF(pin[0], pin[1], False)
 
 # Function to start the process for a specific pin
 def start_process(n):
@@ -71,7 +71,7 @@ def buttonProc():
 
     if any(input_states):  # If any input pin is HIGH
         for pin in output_pin_numbers:  # Set all output pins to HIGH
-            GPIO.output(pin, 1)  
+            GPIO.output(pin, 1)
         
         for i, pin_pair in enumerate(g_pins):  # For each pair of pins
             thread = Thread(target=handle_pin, args=(i, pin_pair[0], pin_pair[1], success_pins, failed_pins))  # Create a thread for each pin pair
@@ -79,12 +79,7 @@ def buttonProc():
             thread.start()  # Start the thread
 
         for thread in threads:  # Wait for all threads to complete
-            thread.join()  
-        
-        if success_pins:  # Print successful pins
-            print(f"\n Successful pins: {success_pins}")
-        if failed_pins:  # Print failed pins
-            print(f"\n Failed pins: {failed_pins}")
+            thread.join()
         
         # Update the GUI with the status of each pin pair
         for i, pin_pair in enumerate(g_pins):
@@ -94,15 +89,15 @@ def buttonProc():
                 status_labels[i].config(text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Failed", fg='red')
     else:  # If no input pins are HIGH
         for pin in output_pin_numbers:  # Set all output pins to LOW
-            GPIO.output(pin, 0)  
+            GPIO.output(pin, 0)
 
 # Function to handle button click
-def buttonFunc():  
+def buttonFunc():
     x = Thread(target=buttonProc)  # Create a thread for buttonProc
     x.start()  # Start the thread
 
 # Function to handle the process for each pin
-def handle_pin(index, in_pin, out_pin, success_pins, failed_pins): 
+def handle_pin(index, in_pin, out_pin, success_pins, failed_pins):
     GPIO.output(out_pin, 1)  # Set the output pin to HIGH
     time.sleep(1)  # Wait for 1 second
     command_success = False  # Initialize command success flag
