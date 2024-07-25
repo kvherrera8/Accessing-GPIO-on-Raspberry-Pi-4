@@ -1,47 +1,29 @@
-Exception in Tkinter callback
-Traceback (most recent call last):
-  File "/usr/lib/python3.11/tkinter/__init__.py", line 1948, in __call__
-    return self.func(*args)
-           ^^^^^^^^^^^^^^^^
-  File "/home/pi/window1.py", line 157, in <lambda>
-    button = tk.Button(window, text="Run Reboot", command=lambda: buttonProc(g_pins, output_pin_numbers, progress_bars, status_labels), fg='white', bg='black')
-                                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/pi/window1.py", line 137, in buttonProc
-    thread.join()
-  File "/usr/lib/python3.11/threading.py", line 1112, in join
-    self._wait_for_tstate_lock()
-  File "/usr/lib/python3.11/threading.py", line 1132, in _wait_for_tstate_lock
-    if lock.acquire(block, timeout):
-       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-
-
-import tkinter as tk  # Import tkinter module with alias 'tk'
-from tkinter import ttk  # Import ttk submodule from tkinter for themed widgets
-import os  # Import os module to interact with the operating system
-import time  # Import time module to handle time-related tasks
-import RPi.GPIO as GPIO  # Import RPi.GPIO module and alias it as GPIO
-import sys  # Import sys module for system-specific parameters and functions
-import subprocess  # Import subprocess module to spawn new processes and connect to their input/output/error pipes
-from threading import Thread  # Import Thread class from threading module to create and manage threads
+import tkinter as tk
+from tkinter import ttk
+import os
+import time
+import RPi.GPIO as GPIO
+import sys
+import subprocess
+from threading import Thread
 
 # Initialize GPIO
 def setup_gpio():
-    GPIO.setmode(GPIO.BOARD)  # Set GPIO pin numbering mode to BOARD
+    GPIO.setmode(GPIO.BOARD)
 
     global input_pin_numbers
-    input_pin_numbers = [8, 10, 19, 33, 35, 18, 7]  # GPIO input pins for LEDs
+    input_pin_numbers = [8, 10, 19, 33, 35, 18, 7]  
     for pin in input_pin_numbers:
-        GPIO.setup(pin, GPIO.IN)  # Set each pin as an input
+        GPIO.setup(pin, GPIO.IN)  
 
-    output_pin_numbers = [11, 13, 15, 29, 31, 37, 16]  # GPIO output pins used for CM4
+    output_pin_numbers = [11, 13, 15, 29, 31, 37, 16]  
     for pin in output_pin_numbers:
-        GPIO.setup(pin, GPIO.OUT)  # Set each pin as an output
+        GPIO.setup(pin, GPIO.OUT)  
 
     g_pins = [[8, 11], [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]]
     for pin in g_pins:
-        GPIO.setup(pin[0], GPIO.IN)  # Set the first pin of each pair as input
-        GPIO.setup(pin[1], GPIO.OUT)  # Set the second pin of each pair as output
+        GPIO.setup(pin[0], GPIO.IN)  
+        GPIO.setup(pin[1], GPIO.OUT)  
 
     return g_pins, output_pin_numbers
 
@@ -56,21 +38,21 @@ def run_command(command, timeout=None):
         output, error = process.communicate()
         return -1, output, error
 
-# Attempt to initialize the device
-def initialize_device(letter, retries, command_success):
+# Initialize device
+def initialize_device(letter):
     os.system("/home/pi/rpiboot_wraper.sh")
     time.sleep(10)
     fileName = f'/dev/sd{letter}'
     return os.path.exists(fileName), fileName
 
-# Try to initialize the device with retries
+# Attempt device initialization
 def attempt_device_initialization():
     letter = 'a'
-    command_success = False
     retries = 0
+    command_success = False
 
     while not command_success and retries < 2:
-        command_success, fileName = initialize_device(letter, retries, command_success)
+        command_success, fileName = initialize_device(letter)
         if command_success:
             print(f"\n Device found at {fileName}")
         else:
@@ -78,9 +60,9 @@ def attempt_device_initialization():
             letter = chr(ord(letter) + 1)
 
     if not command_success and retries == 2:
-        command_success, fileName = initialize_device('a', retries, command_success)
+        command_success, fileName = initialize_device('a')
         while not command_success and retries < 3:
-            command_success, fileName = initialize_device(letter, retries, command_success)
+            command_success, fileName = initialize_device(letter)
             if command_success:
                 print(f"\n Device found at {fileName}")
             else:
@@ -89,7 +71,7 @@ def attempt_device_initialization():
     
     return command_success
 
-# Run the dd command and monitor its progress
+# Run the dd command
 def run_dd_command():
     dd_command = "sudo dd bs=4M if=Zyrlo_2022_08_14_RC1.img of=/dev/sdb conv=fsync"
     print("\n Running dd command...")
@@ -98,7 +80,7 @@ def run_dd_command():
         print("\n dd command completed successfully")
     return ret_code
 
-# Monitor the status of the dd command
+# Monitor dd command progress
 def monitor_dd_command(update_progress, index):
     while True:
         status_command = "status=progress"
@@ -111,23 +93,25 @@ def monitor_dd_command(update_progress, index):
             print(f"\n Output during status check: {status_output.decode()}")
         time.sleep(30)
 
-# Handle the pin processing logic
+# Handle pin processing logic
 def handle_pin(index, in_pin, out_pin, success_pins, failed_pins, update_progress):
-    GPIO.output(out_pin, GPIO.HIGH)  # Set output pin to HIGH
-    time.sleep(1)  # Wait for 1 second
+    try:
+        GPIO.output(out_pin, GPIO.HIGH)
+        time.sleep(1)
 
-    command_success = attempt_device_initialization()
-
-    if command_success:
-        update_progress(index, 60)
-        if run_dd_command() == 0:
-            monitor_dd_command(update_progress, index)
-            success_pins.append(out_pin)
+        if attempt_device_initialization():
+            update_progress(index, 60)
+            if run_dd_command() == 0:
+                monitor_dd_command(update_progress, index)
+                success_pins.append((in_pin, out_pin))
+            else:
+                failed_pins.append((in_pin, out_pin))
         else:
-            failed_pins.append(out_pin)
-    else:
-        print(f"\n Command failed on pin {out_pin} after 3 attempts")
-        failed_pins.append(out_pin)
+            print(f"\n Command failed on pin {out_pin} after 3 attempts")
+            failed_pins.append((in_pin, out_pin))
+    except Exception as e:
+        print(f"\n Exception occurred: {e}")
+        failed_pins.append((in_pin, out_pin))
 
 # Update progress bar
 def update_progress(index, value, progress_bars):
@@ -155,9 +139,9 @@ def buttonProc(g_pins, output_pin_numbers, progress_bars, status_labels):
             thread.join()
 
         for i, pin_pair in enumerate(g_pins):
-            if pin_pair[1] in success_pins:
+            if pin_pair in success_pins:
                 status_labels[i].config(text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Success", fg='green')
-            elif pin_pair[1] in failed_pins:
+            elif pin_pair in failed_pins:
                 status_labels[i].config(text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Failed", fg='red')
 
     else:
@@ -173,7 +157,7 @@ def setup_gui():
     window.configure(bg='lightgrey')
 
     button = tk.Button(window, text="Run Reboot", command=lambda: buttonProc(g_pins, output_pin_numbers, progress_bars, status_labels), fg='white', bg='black')
-    button.pack(pady=10)
+    button.pack(pady=10, anchor='n')
 
     for i, pin_pair in enumerate(g_pins):
         frame = tk.Frame(window, bg='lightgrey')
