@@ -96,7 +96,7 @@ def buttonFunc():
     x.start()  # Start thread
 
 def handle_pin(index, in_pin, out_pin, success_pins, failed_pins):
-    if ONOFF(in_pin, out_pin, True) < 0 :
+    if ONOFF(in_pin, out_pin, True) < 0:
         status_labels[index].config(text=f"Pin pair {in_pin} and {out_pin}: Failed", fg='red')
         return -1
     if wait_for_device(index) < 0:
@@ -165,7 +165,7 @@ def wait_for_device(index):
 
 def on_closing():
     GPIO.cleanup()  # Clean up GPIO pins
-    print("\nExiting...")  # Print exit message
+    print("\n GPIO cleaned up")
     sys.exit(0)  # Exit the program
 
 # GUI setup
@@ -200,6 +200,8 @@ def update_progress(index, value):
 def reset_pins():
     for pin in output_pin_numbers:
         GPIO.output(pin, 0)  # Set all output pins to 0 (off)
+    for pin in input_pin_numbers:
+        GPIO.setup(pin, GPIO.IN)  # Ensure all input pins are set to input mode
 
 window.protocol("WM_DELETE_WINDOW", on_closing)  # Handle window close event
 window.mainloop()  # Start the Tkinter main loop
