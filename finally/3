@@ -79,16 +79,16 @@ def buttonProc():
     if any(input_states):  # If any input is high/1/true/on
         for pin in output_pin_numbers:
             GPIO.output(pin, 1)  # Turn on all output pins when input pins are detected to be high
-        
+
         for i, pin_pair in enumerate(g_pins):
             if GPIO.input(pin_pair[0]) == GPIO.HIGH:  # Only run command for input pins that are high
                 thread = Thread(target=handle_pin, args=(i, pin_pair[0], pin_pair[1], success_pins, failed_pins))  # Create a thread for each pin pair
                 threads.append(thread)  # Append/add thread to the list
                 thread.start()  # Start thread
-        
+
         for thread in threads:
             thread.join()  # Wait for all threads to finish
-        
+
         for i, pin_pair in enumerate(g_pins):
             if pin_pair[1] in success_pins:
                 status_labels[i].config(text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Success", fg='green')  # Update status label to success
@@ -215,4 +215,3 @@ def update_progress(index, value):
 
 window.protocol("WM_DELETE_WINDOW", on_closing)  # Handle window close event
 window.mainloop()  # Start the Tkinter main loop
-
