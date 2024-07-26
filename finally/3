@@ -69,6 +69,13 @@ def buttonProc():
 
     input_states = [GPIO.input(pin) for pin in input_pin_numbers]  # Read input status
 
+    # Update star colors based on input state
+    for i, state in enumerate(input_states):
+        if state == GPIO.HIGH:
+            star_labels[i].config(bg='green')  # Set star color to green for detected voltage
+        else:
+            star_labels[i].config(bg='red')  # Set star color to red for no voltage
+
     if any(input_states):  # If any input is high/1/true/on
         for pin in output_pin_numbers:
             GPIO.output(pin, 1)  # Turn on all output pins when input pins are detected to be high
@@ -153,21 +160,19 @@ def wait_for_device(index):
                 print("\n dd command completed successfully")
                 break  # Break out of while loop if command is successful
             else:
-                print(f"\n Error during status check: {status_error.decode()}")
-                print(f"\n Output during status check: {status_output.decode()}")
-            time.sleep(30)  # Wait 30 sec before checking status again
-
+                print(f"\n dd command failed with error: {status_error}")
+                break  # Break out of while loop if command fails
         update_progress(index, 100)  # Update progress bar to 100%
-        return 0  # Return success
-    else:
-        print(f"\n Command failed after 3 attempts")
-        return -1  # Return failure
+        return 0  # Return 0 if successful
+    return -1  # Return -1 if command failed
 
 def reset_pins():
     for pin in output_pin_numbers:
         GPIO.output(pin, 0)  # Set all output pins to 0 (off)
     for pin in input_pin_numbers:
         GPIO.setup(pin, GPIO.IN)  # Ensure all input pins are set to input mode
+    for label in star_labels:
+        label.config(bg='red')  # Set all stars to red initially
 
 def on_closing():
     GPIO.cleanup()  # Clean up GPIO pins
@@ -183,6 +188,7 @@ frame.pack(padx=10, pady=10)  # Add frame to window with padding
 
 status_labels = []  # List to hold status labels
 progress_bars = []  # List to hold progress bars
+star_labels = []  # List to hold star indicators
 
 for i, pin_pair in enumerate(g_pins):
     label = tk.Label(frame, text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Not started")  # Create status label
@@ -192,6 +198,10 @@ for i, pin_pair in enumerate(g_pins):
     progress = ttk.Progressbar(frame, orient="horizontal", length=200, mode="determinate")  # Create progress bar
     progress.grid(row=i, column=1, padx=5, pady=5)  # Add progress bar to grid
     progress_bars.append(progress)  # Append progress bar to list
+
+    star = tk.Label(frame, text="★", font=("Arial", 20), bg='red')  # Create star label
+    star.grid(row=i, column=2, padx=5, pady=5)  # Add star label to grid
+    star_labels.append(star)  # Append star label to list
 
 reset_button = tk.Button(window, text="Reset Pins", command=reset_pins)  # Create reset button
 reset_button.pack(pady=10)  # Add reset button to window with padding
