@@ -1,0 +1,251 @@
+#make sure it detects all usb hubs and their status
+#if one usbhub does not detect voltage, show red, but if it does detect voltage, show green
+#"green" can have commands run through, "red" cannot run commands
+
+import tkinter as tk  
+from tkinter import ttk  # used for widgets (progress bar)
+import os  
+import time  
+import RPi.GPIO as GPIO  
+import sys  
+import subprocess  # used for running external commands
+from threading import Thread
+
+# set GPIO pin numbering mode to BOARD - physical location of pins 
+GPIO.setmode(GPIO.BOARD)
+
+# list of GPIO input pins for LEDs (detects voltage)
+input_pin_numbers = [8, 10, 19, 33, 35, 18, 7]
+for pin in input_pin_numbers:
+    GPIO.setup(pin, GPIO.IN)  # set pins as input
+
+# list of GPIO output pins used for CM4 (programs CM4)
+output_pin_numbers = [11, 13, 15, 29, 31, 37, 16]
+for pin in output_pin_numbers:
+    GPIO.setup(pin, GPIO.OUT)  # Set each pin as an output
+    GPIO.output(pin, 0)  # Ensure all output pins are initially off
+
+# (input, output) pairs
+g_pins = [[8, 11], [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]]
+for pin in g_pins:
+    GPIO.setup(pin[0], GPIO.IN)  # input pin
+    GPIO.setup(pin[1], GPIO.OUT)  # output pin
+    GPIO.output(pin[1], 0)  # put output pin as off
+
+# function to toggle GPIO pin
+def ONOFF(in_pin, out_pin, onoff_state):
+    iter = 0  # initialize iter counter to 0/zero
+    max_iter = 3  # set max iter to 3
+    if onoff_state:  # If the desired state is ON/True/1/High
+        while GPIO.input(in_pin) != onoff_state:  # wait until input pin matches on/true/1/high
+            GPIO.output(out_pin, 1)  # set output pin high if input is high
+            time.sleep(0.1)  # wait 0.1 sec
+            GPIO.output(out_pin, 0)  # set output pin low/0/false/off
+            time.sleep(0.5)  # wait 0.5 sec
+            if iter > max_iter:  # if max iter reached, return -1
+                return -1  # error
+            iter += 1  # Increment/add iter counter
+        return 0  # return 0 if successful
+    return 0  # If onoff_state is False, return 0 = success
+
+# Ensure all output pins are off initially
+for pin in g_pins:
+    ONOFF(pin[0], pin[1], False)  # turn off all pin pairs 
+
+def start_process(n):
+    ONOFF(g_pins[n][0], g_pins[n][1], True)  # Turn on the pin
+    return wait_for_device(n)  # Wait for the device to be ready
+
+def wait_for_device(index):
+    letter = 'a'
+    retries = 0
+    while retries < 3:
+        device_path = f'/dev/sd{letter}'
+        if os.path.exists(device_path):
+            print(f"Device found at {device_path} for pin {g_pins[index][1]}")
+            return 0  # Device found
+        else:
+            print(f"Waiting for device at {device_path} for pin {g_pins[index][1]}")
+            time.sleep(5)  # wait before retrying
+            retries += 1
+            letter = chr(ord(letter) + 1)  # Move to next letter
+    return -1  # Device not found after retries
+
+def run_command(command, timeout=None):
+    try:
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # Run the command as a subprocess
+        output, error = process.communicate(timeout=timeout)  # obtain output and error from the process
+        return process.returncode, output, error  # return process return code, output, and error
+    except subprocess.TimeoutExpired:
+        process.kill()  # kill the process if it times out
+        output, error = process.communicate()  # get output and error from the killed process
+        return -1, output, error  # return -1 and the output and error, return -1=error
+
+def buttonProc():
+    threads = []  # list to store threads
+    success_pins = []  # list to store successfully processed pins
+    failed_pins = []  # list to store failed pins
+
+    input_states = [GPIO.input(pin) for pin in input_pin_numbers]  # read input status
+
+    if any(input_states):  # If any input is high/1/true/on
+        for pin in output_pin_numbers:
+            GPIO.output(pin, 1)  # Turn on all output pins when input pins are detected to be high
+        
+        for i, pin_pair in enumerate(g_pins):
+            thread = Thread(target=handle_pin, args=(i, pin_pair[0], pin_pair[1], success_pins, failed_pins))  # Create a thread for each pin pair
+            threads.append(thread)  # Append/add thread to the list
+            thread.start()  # Start thread
+        
+        for thread in threads:
+            thread.join()  # wait for all threads to finish
+        
+        for i, pin_pair in enumerate(g_pins):
+            if pin_pair[1] in success_pins:
+                status_labels[i].config(text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Success", fg='green')  # update status label to success
+            else:
+                status_labels[i].config(text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Failed", fg='red')  # update status label to failed
+    else:
+        for pin in output_pin_numbers:
+            GPIO.output(pin, 0)  # ensure all output pins remain off if no input is detected (voltage)
+
+def buttonFunc():
+    x = Thread(target=buttonProc)  # Create a thread to handle button press
+    x.start()  # Start thread
+
+def handle_pin(index, in_pin, out_pin, success_pins, failed_pins):
+    if ONOFF(in_pin, out_pin, True) < 0:
+        display(index, red)
+        return -1
+    if wait_for_device(index) < 0:
+        display(index, red)
+        return -1
+    display(index, green)
+    return 0
+
+    GPIO.output(out_pin, 1)  # set output pin high/1/true/on
+    time.sleep(1)  # wait 1 sec
+    command_success = False  # Initialize command success flag
+    retries = 0  # initialize retries counter to zero/0
+    letter = 'a'  # initialize letter for device naming
+
+    while not command_success and retries < 2:
+        os.system("/home/pi/rpiboot_wraper.sh")  # Run command
+        update_progress(index, 30)  # Update progress bar
+        time.sleep(15)  # wait 15 sec
+
+        fileName = f'/dev/sd{letter}'  
+        if os.path.exists(fileName):  # Check if file exists
+            command_success = True  # Set command success flag
+            print(f"\n Device found at {fileName} for pin {out_pin}")
+        else:
+            print(f"\n Retrying command for pin {out_pin} (Attempt {retries + 1})")
+            retries += 1  # increment/add retries counter
+            letter = chr(ord(letter) + 1)  # Move to next letter
+
+        if not command_success and retries == 2:
+            os.system("/home/pi/rpiboot_wraper.sh")  # run external script again
+            update_progress(index, 30)  # Update progress bar
+            time.sleep(15)  # Wait 15 sec
+            letter = 'a'  # Reset letter
+            while not command_success and retries < 3:  # final try
+                fileName = f'/dev/sd{letter}'  
+                if os.path.exists(fileName):  # Check if device exists
+                    command_success = True  # Set command success flag
+                    print(f"\n Device found at {fileName} for pin {out_pin}")
+                else:
+                    print(f"\n Retrying command for pin {out_pin} (Attempt {retries + 1})")
+                    retries += 1  # increment/add retries counter
+                    letter = chr(ord(letter) + 1)  # Move to next letter
+
+    if command_success:
+        dd_command = "sudo dd bs=4M if=Zyrlo_2022_08_14_RC1.img of=/dev/sdb conv=fsync"  # Construct dd command
+        print("\n Running dd command...")
+        update_progress(index, 60)  # Update progress bar
+        ret_code, dd_output, dd_error = run_command(dd_command)  # Run dd command
+
+        while True:
+            status_command = "status=progress"  
+            ret_code, status_output, status_error = run_command(status_command)  # Run status command
+            if ret_code == 0:
+                print("\n dd command completed successfully")
+                break  # Break out of while loop if command is successful
+            else:
+                print(f"\n Error during status check: {status_error.decode()}")
+                print(f"\n Output during status check: {status_output.decode()}")
+            time.sleep(30)  # wait 30 sec before checking status again
+
+        update_progress(index, 100)  # Update progress bar to 100%
+        success_pins.append(out_pin)  # Append/add output pin to success list
+    else:
+        print(f"\n Command failed on pin {out_pin} after 3 attempts")
+        failed_pins.append(out_pin)  # Append/add output pin to failed list
+
+def on_closing():
+    GPIO.cleanup()  # Clean up GPIO pins
+    print("\n GPIO cleaned up")
+    sys.exit()  # Exit the program
+
+# Initialize GUI
+window = tk.Tk()  # create main window
+window.geometry("900x900")  # Set window size
+window.protocol("WM_DELETE_WINDOW", on_closing)  # Set function to call on window close 'X' or 'Ctrl C'
+window.configure(bg='lightgrey')  # Set window bg = background color
+
+progress_bars = {}  # store progress bars
+status_labels = {}  # store status labels
+star_labels = {}  # store star labels
+
+def reset_progress():  # reset button - resets progress bar, checks input status, and put back default colors when resetting 
+    for i in range(len(g_pins)):
+        progress_bars[i]['value'] = 0  # Reset progress bar to 0
+        status_labels[i].config(text=f"Status for pin pair {g_pins[i][0]} and {g_pins[i][1]}", fg='black')  # Reset status label to default text
+        star_labels[i].config(fg='black')  # Reset star color to black
+        GPIO.output(g_pins[i][1], 0)  # Turn off output pin
+    print("Progress and status reset")
+
+button_run = tk.Button(window, text="Run Commands", command=buttonFunc, fg='white', bg='black')  # Create "Run Command" button
+button_run.pack(pady=10)  # Add button to window
+
+button_reset = tk.Button(window, text="Reset", command=reset_progress, fg='white', bg='black')  # Create "Reset" button
+button_reset.pack(pady=10)  # Add button to window
+
+for i, pin_pair in enumerate(g_pins):
+    frame = tk.Frame(window, bg='lightgrey')  # create frame for each pin pair
+    frame.pack(anchor='w', padx=20, pady=5)  # add frame to window
+
+    label = tk.Label(frame, text=f"Progress for pin pair {pin_pair[0]} and {pin_pair[1]}", bg='lightgrey')  # Create label for progress
+    label.pack(side='left', pady=10)  # Add label to frame
+
+    star_label = tk.Label(frame, text="★", font=("Roman", 24), bg='lightgrey')  # Create star label
+    star_label.pack(side='left', padx=10)  # Add star label to frame
+    star_labels[i] = star_label  # Store star label
+
+    progress_bar = ttk.Progressbar(frame, orient='horizontal', length=300, mode='determinate')  # Create progress bar
+    progress_bar.pack(side='left', padx=20)  # Add progress bar to frame
+    progress_bars[i] = progress_bar  # store progress bar
+
+    status_label = tk.Label(frame, text=f"Status for pin pair {pin_pair[0]} and {pin_pair[1]}", bg='lightgrey')  # Create status label
+    status_label.pack(side='left', pady=10)  # add status label to frame
+    status_labels[i] = status_label  # store status label
+
+def update_progress(index, value):
+    progress_bars[index]['value'] = value  # Set progress bar value
+    window.update_idletasks()  # Update GUI
+
+def update_star_colors():  # Function to update star colors based on input pin states
+    for i, pin_pair in enumerate(g_pins):
+        if GPIO.input(pin_pair[0]) == GPIO.HIGH:  # When input pin detects high/True/1 (voltage), display green
+            star_labels[i].config(fg='green')  # Set star color to green
+        else:
+            star_labels[i].config(fg='red')  # When input pin detects low/False/0 (no voltage), display red
+    window.after(500, update_star_colors)  # Schedule function to run again after 500 milliseconds
+
+update_star_colors()  # call funct to start updating star colors (to green or red)
+
+try:
+    window.mainloop()
+except KeyboardInterrupt:
+    print("\n KeyboardInterrupt caught, cleaning up GPIO and exiting")
+    GPIO.cleanup()  # Clean up GPIO pins
+    sys.exit()  # Exit the program
