@@ -163,6 +163,12 @@ def wait_for_device(index):
         print(f"\n Command failed after 3 attempts")
         return -1  # Return failure
 
+def reset_pins():
+    for pin in output_pin_numbers:
+        GPIO.output(pin, 0)  # Set all output pins to 0 (off)
+    for pin in input_pin_numbers:
+        GPIO.setup(pin, GPIO.IN)  # Ensure all input pins are set to input mode
+
 def on_closing():
     GPIO.cleanup()  # Clean up GPIO pins
     print("\n GPIO cleaned up")
@@ -196,12 +202,6 @@ run_button.pack(pady=10)  # Add run button to window with padding
 def update_progress(index, value):
     progress_bars[index].config(value=value)  # Update progress bar value
     window.update_idletasks()  # Refresh the GUI
-
-def reset_pins():
-    for pin in output_pin_numbers:
-        GPIO.output(pin, 0)  # Set all output pins to 0 (off)
-    for pin in input_pin_numbers:
-        GPIO.setup(pin, GPIO.IN)  # Ensure all input pins are set to input mode
 
 window.protocol("WM_DELETE_WINDOW", on_closing)  # Handle window close event
 window.mainloop()  # Start the Tkinter main loop
