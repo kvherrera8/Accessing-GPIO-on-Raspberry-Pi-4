@@ -21,69 +21,69 @@ G_PINS = [[8, 11], [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]] #(
 
 # Setup GPIO pins
 for pin in INPUT_PIN_NUMBERS:
-    GPIO.setup(pin, GPIO.IN)
+    GPIO.setup(pin, GPIO.IN) #set as input
 
 for pin in OUTPUT_PIN_NUMBERS:
-    GPIO.setup(pin, GPIO.OUT)
+    GPIO.setup(pin, GPIO.OUT) #set as output
     GPIO.output(pin, 0)  # Ensure all output pins are initially off
 
 for pin_pair in G_PINS:
-    GPIO.setup(pin_pair[0], GPIO.IN)
-    GPIO.setup(pin_pair[1], GPIO.OUT)
+    GPIO.setup(pin_pair[0], GPIO.IN) #inpt pin
+    GPIO.setup(pin_pair[1], GPIO.OUT) #output pin
     GPIO.output(pin_pair[1], 0)  # Ensure output pins are initially off
 
 def ONOFF(in_pin, out_pin, onoff_state):
-    iter = 0
-    max_iter = 3
-    if onoff_state:
-        while GPIO.input(in_pin) != onoff_state:
-            GPIO.output(out_pin, 1)
-            time.sleep(0.1)
-            GPIO.output(out_pin, 0)
-            time.sleep(0.5)
-            if iter > max_iter:
+    iter = 0 #initialize iter counter to 0/zero
+    max_iter = 3 #set max iter to 3
+    if onoff_state: #if set to on/true/1/high
+        while GPIO.input(in_pin) != onoff_state: #when input is on/true/high/1
+            GPIO.output(out_pin, 1) #set output high
+            time.sleep(0.1) #.1 sec
+            GPIO.output(out_pin, 0) #set output low
+            time.sleep(0.5) #.5 sec
+            if iter > max_iter: #if max is reached
                 logging.error(f"Failed to match state for pin {in_pin} after {max_iter} iterations")
-                return -1
-            iter += 1
-        return 0
-    return 0
+                return -1 #return -1 = error
+            iter += 1 # increment/add iter counter 
+        return 0 # return 0 = successful
+    return 0 # return 0 = successful
 
 for pin_pair in G_PINS:
-    ONOFF(pin_pair[0], pin_pair[1], False)
+    ONOFF(pin_pair[0], pin_pair[1], False) #turn off all pin pairs
 
 def start_process(n):
-    ONOFF(G_PINS[n][0], G_PINS[n][1], True)
+    ONOFF(G_PINS[n][0], G_PINS[n][1], True) #turn on all pin pairs
     return wait_for_device(n)
 
 def run_command(command, timeout=None):
     try:
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, error = process.communicate(timeout=timeout)
-        return process.returncode, output, error
+        return process.returncode, output, error #obtain output and error
     except subprocess.TimeoutExpired:
-        process.kill()
+        process.kill() #kill process
         output, error = process.communicate()
         logging.error(f"Command timeout expired: {error.decode()}")
-        return -1, output, error
+        return -1, output, error #error/issue
 
 def buttonProc():
-    threads = []
-    success_pins = []
-    failed_pins = []
+    threads = [] #threads
+    success_pins = [] #successful pins
+    failed_pins = [] #failed pins
 
-    input_states = [GPIO.input(pin) for pin in INPUT_PIN_NUMBERS]
+    input_states = [GPIO.input(pin) for pin in INPUT_PIN_NUMBERS] #read input status
 
-    if any(input_states):
+    if any(input_states): #if input high/1/true/on
         for pin in OUTPUT_PIN_NUMBERS:
-            GPIO.output(pin, 1)
+            GPIO.output(pin, 1) #turn on output when input is detected on (voltage detected)
 
         for i, pin_pair in enumerate(G_PINS):
             thread = Thread(target=handle_pin, args=(i, pin_pair[0], pin_pair[1], success_pins, failed_pins))
-            threads.append(thread)
-            thread.start()
+            threads.append(thread) #add thread to list
+            thread.start() #start thread
 
         for thread in threads:
-            thread.join()
+            thread.join() #wait for all threads to finish
 
         for i, pin_pair in enumerate(G_PINS):
             if pin_pair[1] in success_pins:
@@ -92,23 +92,23 @@ def buttonProc():
                 status_labels[i].config(text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Failed", fg='red')
     else:
         for pin in OUTPUT_PIN_NUMBERS:
-            GPIO.output(pin, 0)
+            GPIO.output(pin, 0) #output is 0/low/false/off
 
 def buttonFunc():
     x = Thread(target=buttonProc)
     x.start()
 
 def handle_pin(index, in_pin, out_pin, success_pins, failed_pins):
-    GPIO.output(out_pin, 1)
-    time.sleep(1)
+    GPIO.output(out_pin, 1) #output high
+    time.sleep(1) #wait 1 sec
     command_success = False
-    retries = 0
-    letter = 'a'
+    retries = 0 # set retries as 0 (will be added if command fails, and / max will be 3)
+    letter = 'a' # set letter as 'a' (if not found, will add and move on to the next letter and checks if found in file)
 
-    while not command_success and retries < 3:
+    while not command_success and retries < 3: #3rd try
         os.system("/home/pi/rpiboot_wraper.sh")
-        update_progress(index, 30)
-        time.sleep(15)
+        update_progress(index, 30) #bar 30%
+        time.sleep(15) #wait 15 sec
 
         fileName = f'/dev/sd{letter}'
         if os.path.exists(fileName):
@@ -116,7 +116,7 @@ def handle_pin(index, in_pin, out_pin, success_pins, failed_pins):
             logging.info(f"Device found at {fileName} for pin {out_pin}")
         else:
             logging.warning(f"Retrying command for pin {out_pin} (Attempt {retries + 1})")
-            retries += 1
+            retries += 1 
             letter = chr(ord(letter) + 1)
 
     if command_success:
