@@ -15,9 +15,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 GPIO.setmode(GPIO.BOARD)
 
 # GPIO pin numbers
-INPUT_PIN_NUMBERS = [8, 10, 19, 33, 35, 18, 7]
-OUTPUT_PIN_NUMBERS = [11, 13, 15, 29, 31, 37, 16]
-G_PINS = [[8, 11], [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]]
+INPUT_PIN_NUMBERS = [8, 10, 19, 33, 35, 18, 7] #input pins (voltage)
+OUTPUT_PIN_NUMBERS = [11, 13, 15, 29, 31, 37, 16] #output pins (no voltage)
+G_PINS = [[8, 11], [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]] #(input,output) 
 
 # Setup GPIO pins
 for pin in INPUT_PIN_NUMBERS:
