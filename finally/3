@@ -215,3 +215,4 @@ def update_progress(index, value):
 
 window.protocol("WM_DELETE_WINDOW", on_closing)  # Handle window close event
 window.mainloop()  # Start the Tkinter main loop
+
