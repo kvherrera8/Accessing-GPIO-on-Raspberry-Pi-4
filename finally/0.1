@@ -141,17 +141,17 @@ def handle_pin(index, in_pin, out_pin, success_pins, failed_pins):
             ret_code, status_output, status_error = run_command(status_command)  # Run status command
             if ret_code == 0:
                 print("\n dd command completed successfully")
-                break  # Break loop if command is successful
+                break  # Break out of while loop if command is successful
             else:
                 print(f"\n Error during status check: {status_error.decode()}")
                 print(f"\n Output during status check: {status_output.decode()}")
-            time.sleep(30)  # Wait 30 seconds before checking status again
+            time.sleep(30)  #wait 30 sec before checking status again
 
         update_progress(index, 100)  # Update progress bar to 100%
-        success_pins.append(out_pin)  # Append output pin to success list
+        success_pins.append(out_pin)  # Append/add output pin to success list
     else:
         print(f"\n Command failed on pin {out_pin} after 3 attempts")
-        failed_pins.append(out_pin)  # Append output pin to failed list
+        failed_pins.append(out_pin)  #Append/add output pin to failed list
 
 def on_closing():
     GPIO.cleanup()  # Clean up GPIO pins
@@ -159,16 +159,16 @@ def on_closing():
     sys.exit()  # Exit the program
 
 # Initialize GUI
-window = tk.Tk()  # Create main window
+window = tk.Tk()  #create main window
 window.geometry("900x900")  # Set window size
-window.protocol("WM_DELETE_WINDOW", on_closing)  # Set function to call on window close
-window.configure(bg='lightgrey')  # Set window background color
+window.protocol("WM_DELETE_WINDOW", on_closing)  # Set function to call on window close 'X' or 'Ctrl C'
+window.configure(bg='lightgrey')  # Set window bg = background color
 
-progress_bars = {}  # Dictionary to store progress bars
-status_labels = {}  # Dictionary to store status labels
-star_labels = {}  # Dictionary to store star labels
+progress_bars = {}  #store progress bars
+status_labels = {}  #store status labels
+star_labels = {}  #store star labels
 
-def reset_progress():
+def reset_progress(): #reset button - resets progress bar, checks input status, and put back default colors when resetting 
     for i in range(len(g_pins)):
         progress_bars[i]['value'] = 0  # Reset progress bar to 0
         status_labels[i].config(text=f"Status for pin pair {g_pins[i][0]} and {g_pins[i][1]}", fg='black')  # Reset status label to default text
@@ -176,30 +176,30 @@ def reset_progress():
         GPIO.output(g_pins[i][1], 0)  # Turn off output pin
     print("Progress and status reset")
 
-button_run = tk.Button(window, text="Run Reboot", command=buttonFunc, fg='white', bg='black')  # Create "Run Reboot" button
+button_run = tk.Button(window, text="Run Commands", command=buttonFunc, fg='white', bg='black')  # Create "Run Command" button
 button_run.pack(pady=10)  # Add button to window
 
-button_reset = tk.Button(window, text="Reset", command=reset_progress, fg='white', bg='red')  # Create "Reset" button
+button_reset = tk.Button(window, text="Reset", command=reset_progress, fg='white', bg='black')  # Create "Reset" button
 button_reset.pack(pady=10)  # Add button to window
 
 for i, pin_pair in enumerate(g_pins):
-    frame = tk.Frame(window, bg='lightgrey')  # Create frame for each pin pair
-    frame.pack(anchor='w', padx=20, pady=5)  # Add frame to window
+    frame = tk.Frame(window, bg='lightgrey')  #create frame for each pin pair
+    frame.pack(anchor='w', padx=20, pady=5)  #add frame to window
 
     label = tk.Label(frame, text=f"Progress for pin pair {pin_pair[0]} and {pin_pair[1]}", bg='lightgrey')  # Create label for progress
     label.pack(side='left', pady=10)  # Add label to frame
 
-    star_label = tk.Label(frame, text="★", font=("Arial", 24), bg='lightgrey')  # Create star label
+    star_label = tk.Label(frame, text="★", font=("Roman", 24), bg='lightgrey')  # Create star label
     star_label.pack(side='left', padx=10)  # Add star label to frame
-    star_labels[i] = star_label  # Store star label in dictionary
+    star_labels[i] = star_label  # Store star label
 
     progress_bar = ttk.Progressbar(frame, orient='horizontal', length=300, mode='determinate')  # Create progress bar
     progress_bar.pack(side='left', padx=20)  # Add progress bar to frame
-    progress_bars[i] = progress_bar  # Store progress bar in dictionary
+    progress_bars[i] = progress_bar  # store progress bar
 
     status_label = tk.Label(frame, text=f"Status for pin pair {pin_pair[0]} and {pin_pair[1]}", bg='lightgrey')  # Create status label
-    status_label.pack(side='left', pady=10)  # Add status label to frame
-    status_labels[i] = status_label  # Store status label in dictionary
+    status_label.pack(side='left', pady=10)  #add status label to frame
+    status_labels[i] = status_label  #store status label
 
 def update_progress(index, value):
     progress_bars[index]['value'] = value  # Set progress bar value
@@ -213,10 +213,10 @@ def update_star_colors():  # Function to update star colors based on input pin s
             star_labels[i].config(fg='red')  # When input pin detects low/False/0 (no voltage), display red
     window.after(500, update_star_colors)  # Schedule function to run again after 500 milliseconds
 
-update_star_colors()  # Call function to start updating star colors
+update_star_colors()  #call funct to start updating star colors (to green or red)
 
 try:
-    window.mainloop()  # Start the Tkinter event loop
+    window.mainloop()
 except KeyboardInterrupt:
     print("\n KeyboardInterrupt caught, cleaning up GPIO and exiting")
     GPIO.cleanup()  # Clean up GPIO pins
