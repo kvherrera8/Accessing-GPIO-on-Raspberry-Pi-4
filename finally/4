@@ -1,25 +1,24 @@
-import tkinter as tk  # Importing the tkinter library for GUI
-from tkinter import ttk  # Importing the themed tkinter widgets
-import os  # Importing the os library for system commands
-import time  # Importing the time library for sleep functionality
-import RPi.GPIO as GPIO  # Importing the GPIO library for Raspberry Pi GPIO control
-import sys  # Importing the sys library for system-specific parameters and functions
-import subprocess  # Importing the subprocess library to run system commands
-from threading import Thread  # Importing Thread class from the threading library for multi-threading
+import tkinter as tk  # Import tkinter library for GUI
+from tkinter import ttk  # Import themed widgets for tkinter
+import os  # Import os library for system commands
+import time  # Import time library for sleep
+import RPi.GPIO as GPIO  # Import GPIO library for Raspberry Pi GPIO control
+import sys  # Import sys library for system-specific functions
+import subprocess  # Import subprocess library for running system commands
+from threading import Thread  # Import Thread class for multi-threading
 
 # Set GPIO pin numbering mode to BOARD (physical pin numbers)
 GPIO.setmode(GPIO.BOARD)
 
-# Define GPIO pins for input and output
+# Define GPIO pins
 input_pin_numbers = [8, 10, 19, 33, 35, 18, 7]  # List of input pin numbers
 output_pin_numbers = [11, 13, 15, 29, 31, 37, 16]  # List of output pin numbers
 g_pins = [[8, 11], [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]]  # List of GPIO pin pairs
 
-# Setup GPIO input pins
+# Setup GPIO pins
 for pin in input_pin_numbers:
     GPIO.setup(pin, GPIO.IN)  # Set pin as input
 
-# Setup GPIO output pins
 for pin in output_pin_numbers:
     GPIO.setup(pin, GPIO.OUT)  # Set pin as output
     GPIO.output(pin, 0)  # Initialize pin to LOW
@@ -158,51 +157,44 @@ def reset_pins():
             star_labels[i].config(bg='red')  # Set star label background to red
 
     for label in status_labels:
-        label.config(text=f"Pin pair {g_pins[status_labels.index(label)][0]} and {g_pins[status_labels.index(label)][1]}: Not Checked", fg='black')  # Reset status labels
+        label.config(text="", fg='black')  # Reset status labels
+    for bar in progress_bars:
+        bar.config(value=0)  # Reset progress bars
 
-    for progress_bar in progress_bars:
-        progress_bar.config(value=0)  # Reset progress bars to 0%
-
-# Function to handle window closing
-def on_closing():
-    GPIO.cleanup()  # Clean up GPIO settings
-    print("\n GPIO cleaned up")  # Print cleanup message
-    sys.exit(0)  # Exit the program
-
-# GUI setup
-window = tk.Tk()  # Initialize the main window
-window.title("GPIO Control Panel")  # Set the window title
-
-frame = tk.Frame(window)  # Create a frame for layout
-frame.pack(padx=10, pady=10)  # Add padding and place the frame
-
-status_labels = []  # List to store status labels
-progress_bars = []  # List to store progress bars
-star_labels = []  # List to store star labels
-
-for i, pin_pair in enumerate(g_pins):
-    label = tk.Label(frame, text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Not Checked")  # Create a status label
-    label.grid(row=i, column=0, padx=5, pady=5)  # Add padding and place the label
-    status_labels.append(label)  # Add to the list
-
-    progress = ttk.Progressbar(frame, orient="horizontal", length=200, mode="determinate")  # Create a progress bar
-    progress.grid(row=i, column=1, padx=5, pady=5)  # Add padding and place the progress bar
-    progress_bars.append(progress)  # Add to the list
-
-    star = tk.Label(frame, text="★", font=("Arial", 20), bg='red')  # Create a star label
-    star.grid(row=i, column=2, padx=5, pady=5)  # Add padding and place the star label
-    star_labels.append(star)  # Add to the list
-
-reset_button = tk.Button(window, text="Reset Pins", command=reset_pins)  # Create a Reset button
-reset_button.pack(pady=10)  # Add padding and place the button
-
-run_button = tk.Button(window, text="Run Reboot", command=buttonFunc)  # Create a Run button
-run_button.pack(pady=10)  # Add padding and place the button
-
-# Function to update progress bar values
+# Function to update progress bar value
 def update_progress(index, value):
-    progress_bars[index].config(value=value)  # Update progress bar value
-    window.update_idletasks()  # Process any pending events
+    progress_bars[index].config(value=value)  # Set the value of the progress bar
 
-window.protocol("WM_DELETE_WINDOW", on_closing)  # Handle window closing event
-window.mainloop()  # Run the GUI application
+# Create main application window
+root = tk.Tk()
+root.title("GPIO Tester")
+
+# Create frames for layout
+frame1 = tk.Frame(root)
+frame1.pack(padx=10, pady=10)
+frame2 = tk.Frame(root)
+frame2.pack(padx=10, pady=10)
+
+# Create star labels to show input status
+star_labels = [tk.Label(frame1, text="*", font=("Arial", 20), bg='gray') for _ in range(7)]
+for i, label in enumerate(star_labels):
+    label.grid(row=0, column=i, padx=5, pady=5)
+
+# Create status labels to show pin pair status
+status_labels = [tk.Label(frame2, text="", fg='black') for _ in range(7)]
+for i, label in enumerate(status_labels):
+    label.grid(row=i, column=0, padx=5, pady=5)
+
+# Create progress bars to show command progress
+progress_bars = [ttk.Progressbar(frame2, orient="horizontal", length=200, mode="determinate") for _ in range(7)]
+for i, bar in enumerate(progress_bars):
+    bar.grid(row=i, column=1, padx=5, pady=5)
+
+# Create buttons to run commands and reset GPIO
+run_button = tk.Button(root, text="Run Commands", command=buttonFunc)
+run_button.pack(pady=5)
+reset_button = tk.Button(root, text="Reset", command=reset_pins)
+reset_button.pack(pady=5)
+
+# Run the main application loop
+root.mainloop()
