@@ -7,7 +7,9 @@ import subprocess
 import sys
 from threading import Thread
 
-g_pins = [[8, 11]] #, [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]] #pairs of pins (input,output)
+input_pin_numbers = [8, 10, 19, 33, 35, 18, 7] #used for LED, determines which output will be programmed
+output_pin_numbers = [11, 13, 15, 29, 31, 37, 16] #output used to program the CM4
+g_pins = [[8, 11], [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]] #pairs of pins (input,output)
 
 input_image = "/home/pi/Downloads/2024-07-04-raspios-bookworm-arm64.img.xz"
 
@@ -15,11 +17,11 @@ input_image = "/home/pi/Downloads/2024-07-04-raspios-bookworm-arm64.img.xz"
 GPIO.setmode(GPIO.BOARD)
 
 # Setup GPIO input pin
-GPIO.setup(input_pin_number, GPIO.IN)  # Set pin as input
+GPIO.setup(input_pin_numbers, GPIO.IN)  # Set pin as input
 
 # Setup GPIO output pin
-GPIO.setup(output_pin_number, GPIO.OUT)  # Set pin as output
-GPIO.output(output_pin_number, 0)  # Initialize pin to LOW
+GPIO.setup(output_pin_numbers, GPIO.OUT)  # Set pin as output
+GPIO.output(output_pin_numbers, 0)  # Initialize pin to LOW
 
 # Function to toggle GPIO output pin based on input pin state
 def ONOFF(in_pin, out_pin, onoff_state):
