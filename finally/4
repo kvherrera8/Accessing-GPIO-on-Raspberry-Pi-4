@@ -11,9 +11,9 @@ from threading import Thread  # Importing Thread class from the threading librar
 GPIO.setmode(GPIO.BOARD)
 
 # Define GPIO pins for input and output
-input_pin_numbers = [8, 10, 19, 33, 35, 18, 7]
-output_pin_numbers = [11, 13, 15, 29, 31, 37, 16]
-g_pins = [[8, 11], [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]]
+input_pin_numbers = [8, 10, 19, 33, 35, 18, 7]  # List of input pin numbers
+output_pin_numbers = [11, 13, 15, 29, 31, 37, 16]  # List of output pin numbers
+g_pins = [[8, 11], [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]]  # List of GPIO pin pairs
 
 # Setup GPIO input pins
 for pin in input_pin_numbers:
@@ -149,54 +149,42 @@ def reset_pins():
         GPIO.output(pin, 0)  # Set all output pins to LOW
     for pin in input_pin_numbers:
         GPIO.setup(pin, GPIO.IN)  # Set all input pins to input mode
-    for label in star_labels:
-        label.config(bg='grey')  # Set all star labels to grey
-    for progress in progress_bars:
-        progress.config(value=0)  # Reset all progress bars to 0
-    for label in status_labels:
-        label.config(text="Not started", fg='black')  # Reset status labels to "Not started"
+    input_states = [GPIO.input(pin) for pin in input_pin_numbers]  # Read the state of each input pin
+    for i, state in enumerate(input_states):
+        if state == GPIO.HIGH:  # If input pin is HIGH
+            star_labels[i].config(bg='green')  # Set star label background to green
+        else:
+            star_labels[i].config(bg='red')  # Set star label background to red
 
-# Function to handle window close event
-def on_closing():
-    GPIO.cleanup()  # Clean up GPIO settings
-    print("\n GPIO cleaned up")  # Print cleanup message
-    sys.exit(0)  # Exit the program
-
-# Function to update progress bar
+# Function to update the progress of a progress bar
 def update_progress(index, value):
     progress_bars[index].config(value=value)  # Update progress bar value
-    window.update_idletasks()  # Update GUI
 
-# GUI setup
-window = tk.Tk()  # Create the main window
-window.title("Pin Status Monitor")  # Set the window title
+# Create the main window
+root = tk.Tk()  # Initialize the main window
+root.title("GPIO Control Panel")  # Set the window title
 
-frame = tk.Frame(window)  # Create a frame in the window
-frame.pack(padx=10, pady=10)  # Add padding to the frame
+# Create and place widgets in the main window
+start_button = tk.Button(root, text="Start", command=buttonFunc)  # Create a Start button
+start_button.pack(pady=10)  # Add padding and place the button
 
-status_labels = []  # List to store status labels
-progress_bars = []  # List to store progress bars
-star_labels = []  # List to store star labels
+reset_button = tk.Button(root, text="Reset", command=reset_pins)  # Create a Reset button
+reset_button.pack(pady=10)  # Add padding and place the button
 
-# Create status labels, progress bars, and star labels for each pin pair
-for i, pin_pair in enumerate(g_pins):
-    label = tk.Label(frame, text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Not started")  # Create a status label
-    label.grid(row=i, column=0, padx=5, pady=5)  # Place the label in the grid
-    status_labels.append(label)  # Add label to the list
+# Create and place progress bars
+progress_bars = [ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate") for _ in range(len(g_pins))]
+for progress_bar in progress_bars:
+    progress_bar.pack(pady=5)  # Add padding and place each progress bar
 
-    progress = ttk.Progressbar(frame, orient="horizontal", length=200, mode="determinate")  # Create a progress bar
-    progress.grid(row=i, column=1, padx=5, pady=5)  # Place the progress bar in the grid
-    progress_bars.append(progress)  # Add progress bar to the list
+# Create and place star labels
+star_labels = [tk.Label(root, text="*", font=("Arial", 24), bg='grey') for _ in range(len(input_pin_numbers))]
+for star_label in star_labels:
+    star_label.pack(pady=5)  # Add padding and place each star label
 
-    star = tk.Label(frame, text="★", font=("Arial", 20), bg='grey')  # Create a star label
-    star.grid(row=i, column=2, padx=5, pady=5)  # Place the star label in the grid
-    star_labels.append(star)  # Add star label to the list
+# Create and place status labels
+status_labels = [tk.Label(root, text=f"Pin pair {pair[0]} and {pair[1]}: Not Checked", fg='black') for pair in g_pins]
+for status_label in status_labels:
+    status_label.pack(pady=5)  # Add padding and place each status label
 
-reset_button = tk.Button(window, text="Reset Pins", command=reset_pins)  # Create a reset button
-reset_button.pack(pady=10)  # Place the reset button in the window
-
-run_button = tk.Button(window, text="Run Reboot", command=buttonFunc)  # Create a run reboot button
-run_button.pack(pady=10)  # Place the run reboot button in the window
-
-window.protocol("WM_DELETE_WINDOW", on_closing)  # Handle window closing event
-window.mainloop()  # Start the GUI main loop
+# Start the main event loop
+root.mainloop()  # Run the GUI application
