@@ -1,109 +1,110 @@
-import tkinter as tk  # Import tkinter library for GUI
-from tkinter import ttk  # Import themed widgets for tkinter
-import os  # Import os library for system commands
-import time  # Import time library for sleep
-import RPi.GPIO as GPIO  # Import GPIO library for Raspberry Pi GPIO control
-import sys  # Import sys library for system-specific functions
-import subprocess  # Import subprocess library for running system commands
-from threading import Thread  # Import Thread class for multi-threading
+import tkinter as tk 
+from tkinter import ttk  # used widgets (progress bar)
+import os  
+import time  
+import RPi.GPIO as GPIO  
+import sys  
+import subprocess  
+from threading import Thread 
 
 # Set GPIO pin numbering mode to BOARD (physical pin numbers)
 GPIO.setmode(GPIO.BOARD)
 
-# Define GPIO pins
-input_pin_numbers = [8, 10, 19, 33, 35, 18, 7]  # List of input pin numbers
-output_pin_numbers = [11, 13, 15, 29, 31, 37, 16]  # List of output pin numbers
-g_pins = [[8, 11], [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]]  # List of GPIO pin pairs
+# Define GPIO pins for input and output
+input_pin_numbers = [8, 10, 19, 33, 35, 18, 7] #used for LED, determines which output will be programmed
+output_pin_numbers = [11, 13, 15, 29, 31, 37, 16] #output used to program the CM4
+g_pins = [[8, 11], [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]] #pairs of pins (input,output)
 
-# Setup GPIO pins
+# Setup GPIO input pins
 for pin in input_pin_numbers:
     GPIO.setup(pin, GPIO.IN)  # Set pin as input
 
+# Setup GPIO output pins
 for pin in output_pin_numbers:
     GPIO.setup(pin, GPIO.OUT)  # Set pin as output
     GPIO.output(pin, 0)  # Initialize pin to LOW
 
 # Function to toggle GPIO output pin based on input pin state
 def ONOFF(in_pin, out_pin, onoff_state):
-    iter = 0  # Initialize iteration counter
-    max_iter = 3  # Maximum iterations to check input state
+    iter = 0  # Initialize iteration counter to zero
+    max_iter = 3  
     if onoff_state:  # If onoff_state is True
-        while GPIO.input(in_pin) != onoff_state:  # Loop until input pin matches onoff_state
-            GPIO.output(out_pin, 1)  # Set output pin to HIGH
-            time.sleep(0.1)  # Wait for 0.1 seconds
-            GPIO.output(out_pin, 0)  # Set output pin to LOW
-            time.sleep(0.5)  # Wait for 0.5 seconds
-            if iter > max_iter:  # If maximum iterations exceeded
-                return -1  # Return failure
-            iter += 1  # Increment iteration counter
-        return 0  # Return success
-    return 0  # Return success if onoff_state is False
+        while GPIO.input(in_pin) != onoff_state:
+            GPIO.output(out_pin, 1)  # Set output pin to HIGH/1/True (on)
+            time.sleep(0.1)  #Wait for 0.1 sec
+            GPIO.output(out_pin, 0)  # Set output pin to LOW/0/False
+            time.sleep(0.5)  #Wait for 0.5 sec
+            if iter > max_iter:  #if max iterations exceeded
+                return -1  #Return failure/error/issue
+            iter += 1  #Increment/add iteration counter
+        return 0  # Return success = 0
+    return 0
 
-# Function to run a shell command with an optional timeout
+# Function to run shell command
 def run_command(command, timeout=None):
     try:
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # Run command
-        output, error = process.communicate(timeout=timeout)  # Capture output and error
-        return process.returncode, output, error  # Return command results
+        output, error = process.communicate(timeout=timeout)  #get output and error
+        return process.returncode, output, error  #return command results
     except subprocess.TimeoutExpired:
-        process.kill()  # Kill the process if timeout expires
-        output, error = process.communicate()  # Capture output and error
-        return -1, output, error  # Return failure
+        process.kill()  #kill the process if timeout expires
+        output, error = process.communicate()  #get output and error
+        return -1, output, error  # Return failure = -1
 
-# Function to process button press
+#function to process button press
 def buttonProc():
-    threads = []  # List to store threads
-    success_pins = []  # List to store successful pins
-    failed_pins = []  # List to store failed pins
+    threads = []  #List to store threads
+    success_pins = []  #List to store successful pins
+    failed_pins = []  #list to store failed pins
 
-    input_states = [GPIO.input(pin) for pin in input_pin_numbers]  # Read the state of each input pin
+    input_states = [GPIO.input(pin) for pin in input_pin_numbers]  #read the state/status of each input pin
 
     for i, state in enumerate(input_states):
-        if state == GPIO.HIGH:  # If input pin is HIGH
-            star_labels[i].config(bg='green')  # Set star label background to green
+        if state == GPIO.HIGH:  #if input pin is HIGH/1/True
+            star_labels[i].config(bg='green')  #set star label background to green
         else:
-            star_labels[i].config(bg='red')  # Set star label background to red
+            star_labels[i].config(bg='red')  #set star label background to red
 
-    if any(input_states):  # If any input pin is HIGH
+    if any(input_states):  #if any input pin is HIGH/1/True
         for pin in output_pin_numbers:
-            GPIO.output(pin, 1)  # Set all output pins to HIGH
+            GPIO.output(pin, 1)  #set all output pins to HIGH/1/True
 
-        for i, pin_pair in enumerate(g_pins):
-            if GPIO.input(pin_pair[0]) == GPIO.HIGH:  # If input pin of the pair is HIGH
-                thread = Thread(target=handle_pin, args=(i, pin_pair[0], pin_pair[1], success_pins, failed_pins))  # Create a thread
-                threads.append(thread)  # Add thread to the list
-                thread.start()  # Start the thread
+        for i, pin_pair in enumerate(g_pins): #enumerate allows you to keep track of the number of iter(loops) in a loop
+            if GPIO.input(pin_pair[0]) == GPIO.HIGH:  #if input pin of the pair is HIGH/1/True
+                thread = Thread(target=handle_pin, args=(i, pin_pair[0], pin_pair[1], success_pins, failed_pins))  #create a thread
+                threads.append(thread)  #add thread to the list
+                thread.start()  #start the thread
 
         for thread in threads:
-            thread.join()  # Wait for all threads to complete
+            thread.join()  #Wait for all threads to complete
 
         for i, pin_pair in enumerate(g_pins):
-            if pin_pair[1] in success_pins:  # If output pin is in success list
-                status_labels[i].config(text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Success", fg='green')  # Update status label to success
+            if pin_pair[1] in success_pins:  #if output pin is in success list
+                status_labels[i].config(text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Success", fg='green')  #Update status label to success
             else:
-                status_labels[i].config(text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Failed", fg='red')  # Update status label to failure
+                status_labels[i].config(text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Failed", fg='red')  #Update status label to failure
     else:
         for pin in output_pin_numbers:
-            GPIO.output(pin, 0)  # Set all output pins to LOW if no input pins are HIGH
+            GPIO.output(pin, 0)  #Set all OUTPUT pins to LOW if no INPUT pins are HIGH
 
-# Function to handle button click
+#Function to handle button click
 def buttonFunc():
-    x = Thread(target=buttonProc)  # Create a thread for buttonProc
-    x.start()  # Start the thread
+    x = Thread(target=buttonProc)  #create a thread for buttonProc
+    x.start()  #start thread
 
-# Function to handle pin programming
+#function to handle pin programming state/status
 def handle_pin(index, in_pin, out_pin, success_pins, failed_pins):
     if ONOFF(in_pin, out_pin, True) < 0:  # Try to toggle the output pin based on input pin state
-        status_labels[index].config(text=f"Pin pair {in_pin} and {out_pin}: Failed", fg='red')  # Update status label to failure
-        return -1  # Return failure
-    if wait_for_device(index) < 0:  # Wait for the device to be ready for programming
-        status_labels[index].config(text=f"Pin pair {in_pin} and {out_pin}: Failed", fg='red')  # Update status label to failure
-        return -1  # Return failure
-    status_labels[index].config(text=f"Pin pair {in_pin} and {out_pin}: Success", fg='green')  # Update status label to success
-    success_pins.append(out_pin)  # Add to success list
-    return 0  # Return success
+        status_labels[index].config(text=f"Pin pair {in_pin} and {out_pin}: Failed", fg='red')  #update status label to failure
+        return -1  #Return failure = -1
+    if wait_for_device(index) < 0:  #wait for the device to be ready for programming
+        status_labels[index].config(text=f"Pin pair {in_pin} and {out_pin}: Failed", fg='red')  #update status label to failure
+        return -1  # Return failure = -1
+    status_labels[index].config(text=f"Pin pair {in_pin} and {out_pin}: Success", fg='green')  #update status label to success
+    success_pins.append(out_pin)  #Add to success list
+    return 0  #Return success = 0
 
-# Function to wait for the device to be ready
+#Function to wait for the device to be ready
 def wait_for_device(index):
     letter = 'a'  # Initialize device letter
     retries = 0  # Initialize retry counter
@@ -142,59 +143,60 @@ def wait_for_device(index):
         return 0  # Return success
     return -1  # Return failure
 
-# Function to reset GPIO pins and UI elements
+# Function to reset GPIO pins and UI elementsdef reset_pins():
 def reset_pins():
     for pin in output_pin_numbers:
         GPIO.output(pin, 0)  # Set all output pins to LOW
     for pin in input_pin_numbers:
         GPIO.setup(pin, GPIO.IN)  # Set all input pins to input mode
-    
-    input_states = [GPIO.input(pin) for pin in input_pin_numbers]  # Read the state of each input pin
-    for i, state in enumerate(input_states):
-        if state == GPIO.HIGH:  # If input pin is HIGH
-            star_labels[i].config(bg='green')  # Set star label background to green
-        else:
-            star_labels[i].config(bg='red')  # Set star label background to red
-
+    for label in star_labels:
+        label.config(bg='grey')  # Set all star labels to grey
+    for progress in progress_bars:
+        progress.config(value=0)  # Reset all progress bars to 0
     for label in status_labels:
-        label.config(text="", fg='black')  # Reset status labels
-    for bar in progress_bars:
-        bar.config(value=0)  # Reset progress bars
+        label.config(text="Not started", fg='black')  # Reset status labels to "Not started"
 
-# Function to update progress bar value
+# Function to handle window closing event
+def on_closing():
+    GPIO.cleanup()  # Clean up GPIO settings
+    print("\n GPIO cleaned up")  # Print GPIO cleaned up message
+    sys.exit(0)  # Exit the program
+
+# Function to update progress bar
 def update_progress(index, value):
-    progress_bars[index].config(value=value)  # Set the value of the progress bar
+    progress_bars[index].config(value=value)  # Update progress bar value
+    window.update_idletasks()  # Update GUI
 
-# Create main application window
-root = tk.Tk()
-root.title("GPIO Tester")
+# GUI setup
+window = tk.Tk()  # Create the main window
+window.title("Pin Status Monitor")  # Set the window title
 
-# Create frames for layout
-frame1 = tk.Frame(root)
-frame1.pack(padx=10, pady=10)
-frame2 = tk.Frame(root)
-frame2.pack(padx=10, pady=10)
+frame = tk.Frame(window)  # Create a frame in the window
+frame.pack(padx=10, pady=10)  # Add padding to the frame
 
-# Create star labels to show input status
-star_labels = [tk.Label(frame1, text="*", font=("Arial", 20), bg='gray') for _ in range(7)]
-for i, label in enumerate(star_labels):
-    label.grid(row=0, column=i, padx=5, pady=5)
+status_labels = []  # List to store status labels
+progress_bars = []  # List to store progress bars
+star_labels = []  # List to store star labels
 
-# Create status labels to show pin pair status
-status_labels = [tk.Label(frame2, text="", fg='black') for _ in range(7)]
-for i, label in enumerate(status_labels):
-    label.grid(row=i, column=0, padx=5, pady=5)
+# Create status labels, progress bars, and star labels for each pin pair
+for i, pin_pair in enumerate(g_pins):
+    label = tk.Label(frame, text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Not started")  # Create a status label
+    label.grid(row=i, column=0, padx=5, pady=5)  # Place the label in the grid
+    status_labels.append(label)  # Add label to the list
 
-# Create progress bars to show command progress
-progress_bars = [ttk.Progressbar(frame2, orient="horizontal", length=200, mode="determinate") for _ in range(7)]
-for i, bar in enumerate(progress_bars):
-    bar.grid(row=i, column=1, padx=5, pady=5)
+    progress = ttk.Progressbar(frame, orient="horizontal", length=400, mode="determinate")  # Create a progress bar
+    progress.grid(row=i, column=1, padx=5, pady=5)  # Place the progress bar in the grid
+    progress_bars.append(progress)  # Add progress bar to the list
 
-# Create buttons to run commands and reset GPIO
-run_button = tk.Button(root, text="Run Commands", command=buttonFunc)
-run_button.pack(pady=5)
-reset_button = tk.Button(root, text="Reset", command=reset_pins)
-reset_button.pack(pady=5)
+    star = tk.Label(frame, text="★", font=("Arial", 20), bg='red')  # Create a star label
+    star.grid(row=i, column=2, padx=5, pady=5)  # Place the star label in the grid
+    star_labels.append(star)  # Add star label to the list
 
-# Run the main application loop
-root.mainloop()
+reset_button = tk.Button(window, text="Reset Pins", command=reset_pins)  # Create a reset button
+reset_button.pack(pady=10)  # Place the reset button in the window
+
+run_button = tk.Button(window, text="Run Commands", command=buttonFunc)  # Create a run reboot button
+run_button.pack(pady=10)  # Place the run reboot button in the window
+
+window.protocol("WM_DELETE_WINDOW", on_closing)  # Handle window closing event
+window.mainloop()  # Start the GUI main loop
