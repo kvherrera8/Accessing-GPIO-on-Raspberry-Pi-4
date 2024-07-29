@@ -52,7 +52,7 @@ def run_command(command, timeout=None):
         output, error = process.communicate()
         return -1, output, error
 
-def FlushFirmwareProc(letter) :
+def FlushFirmwareProc(index, letter) :
     print ('FlushFirmwareProc')
     command = f'sudo dd bs=4M if={input_image} of=/dev/sd{letter} conv=fsync &'
     print (command)
@@ -67,20 +67,23 @@ def FlushFirmwareProc(letter) :
         file = open(progress_file_name, 'r')
         progress = int(file.read())
         file.close()
+        update_progress(progress)
         print("Progress = ", progress, "\n")
         time.sleep(1)
         
     
-def FlushFirmware(letter) :
-    Thread(target=FlushFirmwareProc, args=(letter)).start()
+def FlushFirmware(index, letter) :
+    Thread(target=FlushFirmwareProc, args=(index, letter)).start()
     
 # Function to handle button press
 def buttonProc():
+    index = 0
     letter = 'a'
     for pin in g_pins :
         if InitializeUsb(pin[0], pin[1], letter) == 0:
-            FlushFirmware(letter)
+            FlushFirmware(index, letter)
             letter = chr(ord(letter) + 1)  # Increment device letter
+            index = index + 1
             
 def InitializeUsb(in_pin, out_pin, letter):
     if ONOFF(in_pin, out_pin, True) != 0 :
