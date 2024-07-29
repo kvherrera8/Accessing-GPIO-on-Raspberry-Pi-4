@@ -91,39 +91,10 @@ def handle_pin(index, in_pin, out_pin, success_pins, failed_pins):
     if ONOFF(in_pin, out_pin, True) < 0:  # Try to toggle the output pin based on input pin state
         status_labels[index].config(text=f"Pin pair {in_pin} and {out_pin}: Failed", fg='red')  # Update status label to failure
         return -1  # Return failure
-    if wait_for_device(index) < 0:  # Wait for the device to be ready for programming
-        status_labels[index].config(text=f"Pin pair {in_pin} and {out_pin}: Failed", fg='red')  # Update status label to failure
-        return -1  # Return failure
-    status_labels[index].config(text=f"Pin pair {in_pin} and {out_pin}: Success", fg='green')  # Update status label to success
-    success_pins.append(out_pin)  # Add to success list
-    return 0  # Return success
-
-# Function to wait for the device to be ready
-def wait_for_device(index):
-    letter = 'a'  # Initialize device letter
-    retries = 0  # Initialize retry counter
-    command_success = False  # Command success flag
-
-    while not command_success and retries < 3:  # Retry up to 3 times
-        os.system("/home/pi/rpiboot_wraper.sh")  # Run the rpiboot wrapper script
-        update_progress(index, 30)  # Update progress to 30%
-        time.sleep(15)  # Wait for 15 seconds
-
-        fileName = f'/dev/sd{letter}'  # Device file name
-        if os.path.exists(fileName):  # Check if device file exists
-            command_success = True  # Set command success flag
-            print(f"\n Device found at {fileName}")  # Print device found message
-        else:
-            print(f"\n Retrying command (Attempt {retries + 1})")  # Print retrying message
-            retries += 1  # Increment retry counter
-            letter = chr(ord(letter) + 1)  # Increment device letter
-
-    if command_success:
-        return 0  # Return success
-    return -1  # Return failure
+    reboot_and_check_file(index, in_pin, out_pin, success_pins, failed_pins)  # Reboot and check file
 
 # Function to execute dd command
-def execute_dd_command(index):
+def execute_dd_command(index, out_pin):
     dd_command = "sudo dd bs=4M if=Zyrlo_2022_08_14_RC1.img of=/dev/sdb conv=fsync"  # dd command to program the device
     print("\n Running dd command...")  # Print running dd command message
     update_progress(index, 60)  # Update progress to 60%
@@ -139,6 +110,22 @@ def execute_dd_command(index):
             print(f"\n dd command failed with error: {status_error}")  # Print failure message
             break  # Break the loop
     update_progress(index, 100)  # Update progress to 100%
+
+# Function to reboot and check if the device file exists
+def reboot_and_check_file(index, in_pin, out_pin, success_pins, failed_pins):
+    os.system("/home/pi/rpiboot_wraper.sh")  # Run the rpiboot wrapper script
+    update_progress(index, 30)  # Update progress to 30%
+    time.sleep(15)  # Wait for 15 seconds
+
+    letter = 'a'  # Initialize device letter
+    fileName = f'/dev/sd{letter}'  # Device file name
+    if os.path.exists(fileName):  # Check if device file exists
+        print(f"\n Device found at {fileName}")  # Print device found message
+        execute_dd_command(index, out_pin)  # Execute dd command if device is found
+        status_labels[index].config(text=f"Pin pair {in_pin} and {out_pin}: Programming Completed", fg='green')  # Update status label to programming completed
+    else:
+        print(f"\n Device not found")  # Print device not found message
+        status_labels[index].config(text=f"Pin pair {in_pin} and {out_pin}: Failed", fg='red')  # Update status label to failure
 
 # Function to reset GPIO pins and UI elements
 def reset_pins():
@@ -162,20 +149,6 @@ def reset_pins():
 # Function to update progress bar value
 def update_progress(index, value):
     progress_bars[index].config(value=value)  # Set the value of the progress bar
-
-# Function to handle device reboot and checking file existence
-def reboot_and_check_file(index):
-    os.system("/home/pi/rpiboot_wraper.sh")  # Run the rpiboot wrapper script
-    update_progress(index, 30)  # Update progress to 30%
-    time.sleep(15)  # Wait for 15 seconds
-
-    letter = 'a'  # Initialize device letter
-    fileName = f'/dev/sd{letter}'  # Device file name
-    if os.path.exists(fileName):  # Check if device file exists
-        print(f"\n Device found at {fileName}")  # Print device found message
-        execute_dd_command(index)  # Execute dd command if device is found
-    else:
-        print(f"\n Device not found")  # Print device not found message
 
 # Create main application window
 root = tk.Tk()
@@ -203,10 +176,10 @@ for i, bar in enumerate(progress_bars):
     bar.grid(row=i, column=1, padx=5, pady=5)  # Place progress bars in grid
 
 # Create buttons to run commands and reset GPIO
-run_reboot_button = tk.Button(root, text="Run Reboot and Check File", command=lambda: [reboot_and_check_file(i) for i in range(len(g_pins))])
+run_reboot_button = tk.Button(root, text="Run Reboot and Check File", command=lambda: [reboot_and_check_file(i, g_pins[i][0], g_pins[i][1], [], []) for i in range(len(g_pins))])
 run_reboot_button.pack(pady=5)  # Add button to run reboot and check file
 
-run_dd_button = tk.Button(root, text="Run dd Command", command=lambda: [execute_dd_command(i) for i in range(len(g_pins))])
+run_dd_button = tk.Button(root, text="Run dd Command", command=lambda: [execute_dd_command(i, g_pins[i][1]) for i in range(len(g_pins))])
 run_dd_button.pack(pady=5)  # Add button to run dd command
 
 reset_button = tk.Button(root, text="Reset", command=reset_pins)
