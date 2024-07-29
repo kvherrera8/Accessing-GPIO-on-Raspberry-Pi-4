@@ -14,10 +14,6 @@ input_image = "/home/pi/Downloads/2024-07-04-raspios-bookworm-arm64.img.xz"
 # Set GPIO pin numbering mode to BOARD (physical pin numbers)
 GPIO.setmode(GPIO.BOARD)
 
-# Define GPIO pins for input and output
-input_pin_number = 8  # Input pin
-output_pin_number = 11  # Output pin
-
 # Setup GPIO input pin
 GPIO.setup(input_pin_number, GPIO.IN)  # Set pin as input
 
