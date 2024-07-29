@@ -22,7 +22,6 @@ for pin in output_pin_numbers:
     GPIO.setup(pin, GPIO.OUT)
     GPIO.output(pin, 0)
 
-# Function to toggle GPIO output pin based on input pin state
 def ONOFF(in_pin, out_pin, onoff_state):
     iter = 0
     max_iter = 3
@@ -38,7 +37,6 @@ def ONOFF(in_pin, out_pin, onoff_state):
         return 0
     return 0
 
-# Function to run a command with an optional timeout
 def run_command(command, timeout=None):
     try:
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -49,7 +47,6 @@ def run_command(command, timeout=None):
         output, error = process.communicate()
         return -1, output, error
 
-# Function to process button press
 def buttonProc():
     threads = []
     success_pins = []
@@ -57,14 +54,12 @@ def buttonProc():
 
     input_states = [GPIO.input(pin) for pin in input_pin_numbers]
 
-    # Update star labels based on input states
     for i, state in enumerate(input_states):
         if state == GPIO.HIGH:
             star_labels[i].config(bg='green')
         else:
             star_labels[i].config(bg='red')
 
-    # If any input pin is HIGH, start the programming process
     if any(input_states):
         for pin in output_pin_numbers:
             GPIO.output(pin, 1)
@@ -78,7 +73,6 @@ def buttonProc():
         for thread in threads:
             thread.join()
 
-        # Update status labels based on success or failure
         for i, pin_pair in enumerate(g_pins):
             if pin_pair[1] in success_pins:
                 status_labels[i].config(text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Success", fg='green')
@@ -88,12 +82,10 @@ def buttonProc():
         for pin in output_pin_numbers:
             GPIO.output(pin, 0)
 
-# Function to handle button click
 def buttonFunc():
     x = Thread(target=buttonProc)
     x.start()
 
-# Function to handle pin programming
 def handle_pin(index, in_pin, out_pin, success_pins, failed_pins):
     if ONOFF(in_pin, out_pin, True) < 0:
         status_labels[index].config(text=f"Pin pair {in_pin} and {out_pin}: Failed", fg='red')
@@ -105,7 +97,6 @@ def handle_pin(index, in_pin, out_pin, success_pins, failed_pins):
     success_pins.append(out_pin)
     return 0
 
-# Function to wait for device to be ready
 def wait_for_device(index):
     letter = 'a'
     retries = 0
@@ -144,7 +135,6 @@ def wait_for_device(index):
         return 0
     return -1
 
-# Function to reset GPIO pins and UI elements
 def reset_pins():
     for pin in output_pin_numbers:
         GPIO.output(pin, 0)
@@ -155,13 +145,11 @@ def reset_pins():
     for progress in progress_bars:
         progress.config(value=0)
 
-# Function to handle window closing event
 def on_closing():
     GPIO.cleanup()
     print("\n GPIO cleaned up")
     sys.exit(0)
 
-# Function to update progress bar
 def update_progress(index, value):
     progress_bars[index].config(value=value)
     window.update_idletasks()
