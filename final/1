@@ -44,18 +44,35 @@ def run_command(command, timeout=None):
         output, error = process.communicate()
         return -1, output, error
 
+# Function to monitor dd process and update progress
+def monitor_dd_process(pid, progress_var):
+    while True:
+        os.system(f"sudo kill -USR1 {pid}")
+        time.sleep(1)
+        with open(f'/proc/{pid}/status', 'r') as file:
+            status_lines = file.readlines()
+        progress = parse_dd_status(status_lines)
+        if progress is not None:
+            progress_var.set(progress)
+        if progress == 100:
+            break
+
+def parse_dd_status(status_lines):
+    # Parse the dd status output and calculate progress
+    for line in status_lines:
+        if "SE" in line:
+            total_bytes = int(line.split()[1])
+            return total_bytes // 1048576  # Convert to MB
+    return None
+
 # Function to flush firmware process
 def FlushFirmwareProc(letter, progress_var):
     command = f'sudo dd bs=4M if={input_image} of=/dev/sd{letter} conv=fsync'
-    pcomm = os.system(command)
-    progress_file_name = f'/home/pi/progress{letter}'
-    progress = 0
-    while progress < 100:
-        if os.path.exists(progress_file_name):
-            with open(progress_file_name, 'r') as file:
-                progress = int(file.read())
-            progress_var.set(progress)
-            time.sleep(1)
+    process = subprocess.Popen(command, shell=True)
+    pid = process.pid
+    monitor_thread = Thread(target=monitor_dd_process, args=(pid, progress_var))
+    monitor_thread.start()
+    process.wait()
 
 # Function to flush firmware
 def FlushFirmware(letter, progress_var):
