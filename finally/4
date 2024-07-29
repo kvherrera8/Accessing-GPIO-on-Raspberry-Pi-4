@@ -1,0 +1,198 @@
+import tkinter as tk
+from tkinter import ttk
+import os
+import time
+import RPi.GPIO as GPIO
+import sys
+import subprocess
+from threading import Thread, Lock
+
+# Set GPIO pin numbering mode to BOARD 
+GPIO.setmode(GPIO.BOARD)
+
+# Define GPIO pins
+input_pin_numbers = [8, 10, 19, 33, 35, 18, 7]
+output_pin_numbers = [11, 13, 15, 29, 31, 37, 16]
+g_pins = [[8, 11], [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]]
+
+# Setup GPIO pins
+for pin in input_pin_numbers:
+    GPIO.setup(pin, GPIO.IN)
+for pin in output_pin_numbers:
+    GPIO.setup(pin, GPIO.OUT)
+    GPIO.output(pin, 0)
+
+# Function to toggle GPIO output pin based on input pin state
+def ONOFF(in_pin, out_pin, onoff_state):
+    iter = 0
+    max_iter = 3
+    if onoff_state:
+        while GPIO.input(in_pin) != onoff_state:
+            GPIO.output(out_pin, 1)
+            time.sleep(0.1)
+            GPIO.output(out_pin, 0)
+            time.sleep(0.5)
+            if iter > max_iter:
+                return -1
+            iter += 1
+        return 0
+    return 0
+
+# Function to run a command with an optional timeout
+def run_command(command, timeout=None):
+    try:
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, error = process.communicate(timeout=timeout)
+        return process.returncode, output, error
+    except subprocess.TimeoutExpired:
+        process.kill()
+        output, error = process.communicate()
+        return -1, output, error
+
+# Function to process button press
+def buttonProc():
+    threads = []
+    success_pins = []
+    failed_pins = []
+
+    input_states = [GPIO.input(pin) for pin in input_pin_numbers]
+
+    # Update star labels based on input states
+    for i, state in enumerate(input_states):
+        if state == GPIO.HIGH:
+            star_labels[i].config(bg='green')
+        else:
+            star_labels[i].config(bg='red')
+
+    # If any input pin is HIGH, start the programming process
+    if any(input_states):
+        for pin in output_pin_numbers:
+            GPIO.output(pin, 1)
+
+        for i, pin_pair in enumerate(g_pins):
+            if GPIO.input(pin_pair[0]) == GPIO.HIGH:
+                thread = Thread(target=handle_pin, args=(i, pin_pair[0], pin_pair[1], success_pins, failed_pins))
+                threads.append(thread)
+                thread.start()
+
+        for thread in threads:
+            thread.join()
+
+        # Update status labels based on success or failure
+        for i, pin_pair in enumerate(g_pins):
+            if pin_pair[1] in success_pins:
+                status_labels[i].config(text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Success", fg='green')
+            else:
+                status_labels[i].config(text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Failed", fg='red')
+    else:
+        for pin in output_pin_numbers:
+            GPIO.output(pin, 0)
+
+# Function to handle button click
+def buttonFunc():
+    x = Thread(target=buttonProc)
+    x.start()
+
+# Function to handle pin programming
+def handle_pin(index, in_pin, out_pin, success_pins, failed_pins):
+    if ONOFF(in_pin, out_pin, True) < 0:
+        status_labels[index].config(text=f"Pin pair {in_pin} and {out_pin}: Failed", fg='red')
+        return -1
+    if wait_for_device(index) < 0:
+        status_labels[index].config(text=f"Pin pair {in_pin} and {out_pin}: Failed", fg='red')
+        return -1
+    status_labels[index].config(text=f"Pin pair {in_pin} and {out_pin}: Success", fg='green')
+    success_pins.append(out_pin)
+    return 0
+
+# Function to wait for device to be ready
+def wait_for_device(index):
+    letter = 'a'
+    retries = 0
+    command_success = False
+
+    while not command_success and retries < 3:
+        os.system("/home/pi/rpiboot_wraper.sh")
+        update_progress(index, 30)
+        time.sleep(15)
+
+        fileName = f'/dev/sd{letter}'
+        if os.path.exists(fileName):
+            command_success = True
+            print(f"\n Device found at {fileName}")
+        else:
+            print(f"\n Retrying command (Attempt {retries + 1})")
+            retries += 1
+            letter = chr(ord(letter) + 1)
+
+    if command_success:
+        dd_command = "sudo dd bs=4M if=Zyrlo_2022_08_14_RC1.img of=/dev/sdb conv=fsync"
+        print("\n Running dd command...")
+        update_progress(index, 60)
+        ret_code, dd_output, dd_error = run_command(dd_command)
+
+        while True:
+            status_command = "status=progress"
+            ret_code, status_output, status_error = run_command(status_command)
+            if ret_code == 0:
+                print("\n dd command completed successfully")
+                break
+            else:
+                print(f"\n dd command failed with error: {status_error}")
+                break
+        update_progress(index, 100)
+        return 0
+    return -1
+
+# Function to reset GPIO pins and UI elements
+def reset_pins():
+    for pin in output_pin_numbers:
+        GPIO.output(pin, 0)
+    for pin in input_pin_numbers:
+        GPIO.setup(pin, GPIO.IN)
+    for label in star_labels:
+        label.config(bg='red')
+
+# Function to handle window closing event
+def on_closing():
+    GPIO.cleanup()
+    print("\n GPIO cleaned up")
+    sys.exit(0)
+
+# Function to update progress bar
+def update_progress(index, value):
+    progress_bars[index].config(value=value)
+    window.update_idletasks()
+
+# GUI setup
+window = tk.Tk()
+window.title("Pin Status Monitor")
+
+frame = tk.Frame(window)
+frame.pack(padx=10, pady=10)
+
+status_labels = []
+progress_bars = []
+star_labels = []
+
+for i, pin_pair in enumerate(g_pins):
+    label = tk.Label(frame, text=f"Pin pair {pin_pair[0]} and {pin_pair[1]}: Not started")
+    label.grid(row=i, column=0, padx=5, pady=5)
+    status_labels.append(label)
+
+    progress = ttk.Progressbar(frame, orient="horizontal", length=200, mode="determinate")
+    progress.grid(row=i, column=1, padx=5, pady=5)
+    progress_bars.append(progress)
+
+    star = tk.Label(frame, text="★", font=("Arial", 20), bg='red')
+    star.grid(row=i, column=2, padx=5, pady=5)
+    star_labels.append(star)
+
+reset_button = tk.Button(window, text="Reset Pins", command=reset_pins)
+reset_button.pack(pady=10)
+
+run_button = tk.Button(window, text="Run Reboot", command=buttonFunc)
+run_button.pack(pady=10)
+
+window.protocol("WM_DELETE_WINDOW", on_closing)
+window.mainloop()
