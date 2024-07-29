@@ -150,14 +150,16 @@ def reset_pins():
     for pin in input_pin_numbers:
         GPIO.setup(pin, GPIO.IN)  # Set all input pins to input mode
     for label in star_labels:
-        label.config(bg='red')  # Set all star labels to red
+        label.config(bg='grey')  # Set all star labels to grey
     for progress in progress_bars:
         progress.config(value=0)  # Reset all progress bars to 0
+    for label in status_labels:
+        label.config(text="Not started", fg='black')  # Reset status labels to "Not started"
 
-# Function to handle window closing event
+# Function to handle window close event
 def on_closing():
     GPIO.cleanup()  # Clean up GPIO settings
-    print("\n GPIO cleaned up")  # Print GPIO cleaned up message
+    print("\n GPIO cleaned up")  # Print cleanup message
     sys.exit(0)  # Exit the program
 
 # Function to update progress bar
@@ -186,7 +188,7 @@ for i, pin_pair in enumerate(g_pins):
     progress.grid(row=i, column=1, padx=5, pady=5)  # Place the progress bar in the grid
     progress_bars.append(progress)  # Add progress bar to the list
 
-    star = tk.Label(frame, text="★", font=("Arial", 20), bg='red')  # Create a star label
+    star = tk.Label(frame, text="★", font=("Arial", 20), bg='grey')  # Create a star label
     star.grid(row=i, column=2, padx=5, pady=5)  # Place the star label in the grid
     star_labels.append(star)  # Add star label to the list
 
