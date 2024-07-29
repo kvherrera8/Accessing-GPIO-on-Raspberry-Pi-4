@@ -1,0 +1,140 @@
+import tkinter as tk
+from tkinter import ttk
+import os
+import time
+import RPi.GPIO as GPIO
+import subprocess
+import sys
+from threading import Thread
+
+# Define GPIO pins pairs (input, output)
+g_pins = [[8, 11], [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]]
+
+input_image = "/home/pi/Downloads/2024-07-04-raspios-bookworm-arm64.img.xz"
+
+# Set GPIO pin numbering mode to BOARD (physical pin numbers)
+GPIO.setmode(GPIO.BOARD)
+
+# Initialize GPIO pins
+for input_pin, output_pin in g_pins:
+    GPIO.setup(input_pin, GPIO.IN)
+    GPIO.setup(output_pin, GPIO.OUT)
+    GPIO.output(output_pin, 0)  # Initialize pin to LOW
+
+# Function to toggle GPIO output pin based on input pin state
+def ONOFF(in_pin, out_pin, onoff_state):
+    max_iter = 3
+    for _ in range(max_iter):
+        if GPIO.input(in_pin) == onoff_state:
+            return 0
+        GPIO.output(out_pin, 1)
+        time.sleep(0.1)
+        GPIO.output(out_pin, 0)
+        time.sleep(0.5)
+    return -1
+
+# Function to run shell command
+def run_command(command, timeout=None):
+    try:
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, error = process.communicate(timeout=timeout)
+        return process.returncode, output, error
+    except subprocess.TimeoutExpired:
+        process.kill()
+        output, error = process.communicate()
+        return -1, output, error
+
+# Function to flush firmware process
+def FlushFirmwareProc(letter, progress_var):
+    command = f'sudo dd bs=4M if={input_image} of=/dev/sd{letter} conv=fsync'
+    pcomm = os.system(command)
+    progress_file_name = f'/home/pi/progress{letter}'
+    progress = 0
+    while progress < 100:
+        if os.path.exists(progress_file_name):
+            with open(progress_file_name, 'r') as file:
+                progress = int(file.read())
+            progress_var.set(progress)
+            time.sleep(1)
+
+# Function to flush firmware
+def FlushFirmware(letter, progress_var):
+    Thread(target=FlushFirmwareProc, args=(letter, progress_var)).start()
+
+# Function to handle button press
+def buttonProc():
+    letter = 'a'
+    for i, (input_pin, output_pin) in enumerate(g_pins):
+        progress_var = progress_vars[i]
+        if InitializeUsb(input_pin, output_pin, letter, progress_var) == 0:
+            FlushFirmware(letter, progress_var)
+            letter = chr(ord(letter) + 1)
+
+# Function to initialize USB
+def InitializeUsb(in_pin, out_pin, letter, progress_var):
+    if ONOFF(in_pin, out_pin, True) != 0:
+        status_label.config(text="Pin pair: Failed", fg='red')
+        return -1
+    os.system("/home/pi/rpiboot_wraper.sh&")
+    if wait_for_device(letter) == 0:
+        status_label.config(text="Pin pair: Success", fg='green')
+        star_label.config(bg='green')
+        progress_var.set(0)
+        return 0
+    status_label.config(text="Pin pair: Failed", fg='red')
+    return -1
+
+# Function to wait for the device to be ready
+def wait_for_device(letter):
+    fileName = f'/dev/sd{letter}'
+    retries = 0
+    while retries < 10:
+        time.sleep(2)
+        if os.path.exists(fileName):
+            return 0
+        retries += 1
+    return -1
+
+# Function to reset GPIO pins and UI elements
+def reset_pins():
+    for input_pin, output_pin in g_pins:
+        GPIO.output(output_pin, 0)
+    star_label.config(bg='grey')
+    for progress_var in progress_vars:
+        progress_var.set(0)
+    status_label.config(text="Not started", fg='black')
+
+# Function to handle window closing event
+def on_closing():
+    GPIO.cleanup()
+    sys.exit(0)
+
+# GUI setup
+window = tk.Tk()
+window.title("Pin Status Monitor")
+
+frame = tk.Frame(window)
+frame.pack(padx=10, pady=10)
+
+status_label = tk.Label(frame, text="Pin pair: Not started")
+status_label.grid(row=0, column=0, padx=5, pady=5)
+
+progress_vars = [tk.IntVar() for _ in range(len(g_pins))]
+progress_bars = []
+
+for i, progress_var in enumerate(progress_vars):
+    progress_bar = ttk.Progressbar(frame, orient="horizontal", length=400, mode="determinate", variable=progress_var)
+    progress_bar.grid(row=i, column=1, padx=5, pady=5)
+    progress_bars.append(progress_bar)
+
+star_label = tk.Label(frame, text="★", font=("Arial", 20), bg='red')
+star_label.grid(row=0, column=2, padx=5, pady=5)
+
+reset_button = tk.Button(window, text="Reset Pins", command=reset_pins)
+reset_button.pack(pady=10)
+
+run_button = tk.Button(window, text="Run Commands", command=lambda: Thread(target=buttonProc).start())
+run_button.pack(pady=10)
+
+window.protocol("WM_DELETE_WINDOW", on_closing)
+window.mainloop()
