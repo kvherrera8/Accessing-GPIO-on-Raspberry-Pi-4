@@ -5,7 +5,7 @@ import time
 import RPi.GPIO as GPIO
 import sys
 import subprocess
-from threading import Thread, Lock
+from threading import Thread
 
 # Set GPIO pin numbering mode to BOARD 
 GPIO.setmode(GPIO.BOARD)
@@ -152,6 +152,8 @@ def reset_pins():
         GPIO.setup(pin, GPIO.IN)
     for label in star_labels:
         label.config(bg='red')
+    for progress in progress_bars:
+        progress.config(value=0)
 
 # Function to handle window closing event
 def on_closing():
