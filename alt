@@ -135,9 +135,9 @@ def update_status(index, text, color):
 # GUI setup
 window = tk.Tk()
 window.title("Pin Status Monitor")
-window.configure(bg="navy")
+window.configure(bg="black")
 
-frame = tk.Frame(window, bg="navy")
+frame = tk.Frame(window, bg="black")
 frame.pack(padx=10, pady=10, expand=True, fill="both")
 
 status_labels = []
@@ -145,7 +145,7 @@ progress_bars = []
 star_labels = []
 
 for i in range(len(g_pins)):
-    status_label = tk.Label(frame, text=f"Pin pair {i+1}: Not started", bg="navy", fg="white")
+    status_label = tk.Label(frame, text=f"Pin pair {i+1}: Not started", bg="black", fg="white")
     status_label.grid(row=i, column=0, padx=5, pady=5, sticky="w")
     status_labels.append(status_label)
 
@@ -157,13 +157,13 @@ for i in range(len(g_pins)):
     star_label.grid(row=i, column=2, padx=5, pady=5)
     star_labels.append(star_label)
 
-button_frame = tk.Frame(window, bg="navy")
+button_frame = tk.Frame(window, bg="black")
 button_frame.pack(pady=10)
 
-reset_button = tk.Button(button_frame, text="Reset Pins", command=reset_pins, bg="navy", fg="white")
+reset_button = tk.Button(button_frame, text="Reset Pins", command=reset_pins, bg="black", fg="white")
 reset_button.grid(row=0, column=0, padx=10)
 
-run_button = tk.Button(button_frame, text="Run Commands", command=lambda: Thread(target=buttonProc).start(), bg="navy", fg="white")
+run_button = tk.Button(button_frame, text="Run Commands", command=lambda: Thread(target=buttonProc).start(), bg="black", fg="white")
 run_button.grid(row=0, column=1, padx=10)
 
 window.protocol("WM_DELETE_WINDOW", on_closing)
