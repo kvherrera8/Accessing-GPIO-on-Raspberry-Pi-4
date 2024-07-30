@@ -106,7 +106,7 @@ def wait_for_device(letter):
 def reset_pins():
     GPIO.output(output_pin_numbers, 0)
     for i in range(len(g_pins)):
-        update_status(i, "Not started", "black")
+        update_status(i, "Not started", "grey")
         update_progress(i, 0)
 
 # Function to handle window closing event
