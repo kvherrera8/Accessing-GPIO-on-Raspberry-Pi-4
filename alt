@@ -125,6 +125,8 @@ def on_closing():
 # Function to update progress bar
 def update_progress(index, value):
     progress_bars[index].config(value=value)
+    if value == 100:
+        update_status(index, "Complete", "green")
     window.update_idletasks()
 
 # Function to update status label
