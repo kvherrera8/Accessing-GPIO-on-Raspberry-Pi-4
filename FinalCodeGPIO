@@ -11,7 +11,7 @@ input_pin_numbers = [8, 10, 19, 33, 35, 18, 7]  # used for LED, determines which
 output_pin_numbers = [11, 13, 15, 29, 31, 37, 16]  # output used to program the CM4
 g_pins = [[8, 11], [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]]  # pairs of pins (input, output)
 
-input_image = "/home/pi/Downloads/2024-07-04-raspios-bookworm-arm64.img.xz"
+input_image = sys.argv[1]#"/home/pi/Downloads/2024-07-04-raspios-bookworm-arm64.img.xz"
 
 # Set GPIO pin numbering mode to BOARD (physical pin numbers)
 GPIO.setmode(GPIO.BOARD)
@@ -51,26 +51,32 @@ def run_command(command, timeout=None):
         return -1, output, error
 
 def FlushFirmwareProc(index, letter):
-    command = f'sudo dd bs=4M if={input_image} of=/dev/sd{letter} conv=fsync status=progress > /home/pi/progress{letter} &'
-    pcomm = os.system(command)
-    if pcomm < 0:
+    command = f'sudo dd bs=4M if={input_image} of=/dev/sd{letter} conv=fsync status=progress 2>&1 | cat'
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if False : #process :
         update_status(index, "Failed", "red")
     else:
+        file_size = os.path.getsize(input_image)
+        n_bytes = 0
+        line = ""
         update_status(index, "In Progress", "blue")
-        progress_file_name = f'/home/pi/progress{letter}'
         progress = 0
-        while progress < 100:
-            try:
-                with open(progress_file_name, 'r') as file:
-                    lines = file.readlines()
-                    for line in lines:
-                        if "bytes" in line:
-                            progress = int(line.split('%')[0].strip().split()[-1])#extract specific string   
-                update_progress(index, progress)
-                time.sleep(1)
-            except FileNotFoundError:
-                time.sleep(1)
-        update_status(index, "Completed", "green")
+        while True:
+            c = process.stdout.read(1).decode()
+            if not c:
+                break
+            if c == '\r':
+                print(line)
+                pos = line.find(" bytes")
+                if pos != -1:
+                    n_bytes = int(line[:pos].strip())
+                    percent = int(n_bytes * 100 // file_size + 0.5)
+                    print(f"{percent}%")
+                    update_progress(index, percent)
+                line = ""
+            else:
+                line += c
+            update_status(index, "Completed", "green")
 
 def FlushFirmware(index, letter):
     Thread(target=FlushFirmwareProc, args=(index, letter)).start()
@@ -159,3 +165,5 @@ run_button.pack(pady=10)
 
 window.protocol("WM_DELETE_WINDOW", on_closing)
 window.mainloop()
+
+
