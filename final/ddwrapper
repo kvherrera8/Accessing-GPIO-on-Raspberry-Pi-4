@@ -1,0 +1,52 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <thread>
+#include <fstream>
+#include <iostream>
+
+using namespace std;
+
+int main(int argc, char *argv[]) {
+     FILE *fp = fopen( argv[1], "r");
+     fseek(fp, 0, SEEK_END);
+     unsigned long long fileSize = ftell(fp);
+     fclose(fp);
+     cout << "FileSize = " << fileSize << endl;
+     char  command[1024];
+     sprintf(command, "(sudo dd if=%s of=%s status=progress 2>&1) |
+cat", argv[1], argv[2]);
+     cout << command << endl;
+     fp = popen(command, "r");
+     char c;
+     string line;
+     int nBytes = 0;
+     while ((c = getc(fp)) != EOF) {
+         if(c == '\r') {
+             cout << line << endl;
+             size_t pos = line.find(" bytes");
+             if(pos != string::npos) {
+                 unsigned long long nBytes = atol(line.substr(0,
+pos).c_str());
+                 int percent = nBytes * 100 /  fileSize;
+                 cout << percent << "%" << endl;
+                 auto of = ofstream(argv[3], fstream::out);
+                 if(of.good()) {
+                     of << percent << endl;
+                     of.close();
+                 }
+             }
+             line.clear();
+         }
+         else
+             line += c;
+     }
+     fclose(fp);
+     auto of = ofstream(argv[3], fstream::out);
+     if(of.good()) {
+     of << 100 << endl;
+     of.close();
+     }
+     cout << "DONE\n";
+     return 0;
+}
