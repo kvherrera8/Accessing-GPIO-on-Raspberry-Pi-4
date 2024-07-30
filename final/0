@@ -112,7 +112,7 @@ def wait_for_device(letter):
 
 # Function to reset GPIO pins and UI elements
 def reset_pins():
-    GPIO.output(output_pin_number, 0)
+    GPIO.output(output_pin_numbers, 0)
     star_label.config(bg='grey')
     progress_bar.config(value=0)
     status_label.config(text="Not started", fg='black')
