@@ -7,13 +7,15 @@ import subprocess
 import sys
 from threading import Thread
 
-if len(sys.argv) != 2:
-    print(f'Usage {sys.argv[0]} <image_file_name>')
-    exit(0)
+if  len(sys.argv) != 2:
+        print(f'Usage {sys.argv[0]} <image_file_name>')
+        exit(0)
 
 g_pins = [[8, 11], [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]]  # pairs of pins (input, output)
 
-input_image = sys.argv[1]  # "/home/pi/Downloads/2024-07-04-raspios-bookworm-arm64.img.xz"
+input_image = sys.argv[1]  #"/home/pi/Downloads/2024-07-04-raspios-bookworm-arm64.img.xz"
+
+
 
 # Set GPIO pin numbering mode to BOARD (physical pin numbers)
 GPIO.setmode(GPIO.BOARD)
@@ -135,43 +137,33 @@ def update_status(index, text, color):
 # GUI setup
 window = tk.Tk()
 window.title("Pin Status Monitor")
-window.geometry("800x600")
-window.configure(bg="#2e3f4f")
 
-style = ttk.Style()
-style.configure("TFrame", background="#2e3f4f")
-style.configure("TLabel", background="#2e3f4f", foreground="white")
-style.configure("TButton", background="#4e5d6c", foreground="white", font=("Helvetica", 12))
-style.configure("TProgressbar", troughcolor="#3e4f5f", background="#6e7f8f", thickness=20)
-
-frame = ttk.Frame(window, padding="10")
-frame.pack(padx=10, pady=10, expand=True, fill='both')
+frame = tk.Frame(window)
+frame.pack(padx=10, pady=10)
 
 status_labels = []
 progress_bars = []
 star_labels = []
 
 for i in range(len(g_pins)):
-    status_label = ttk.Label(frame, text=f"Pin pair {i+1}: Not started")
-    status_label.grid(row=i, column=0, padx=5, pady=5, sticky="w")
+    status_label = tk.Label(frame, text=f"Pin pair {i+1}: Not started")
+    status_label.grid(row=i, column=0, padx=5, pady=5)
     status_labels.append(status_label)
 
     progress_bar = ttk.Progressbar(frame, orient="horizontal", length=400, mode="determinate")
     progress_bar.grid(row=i, column=1, padx=5, pady=5)
     progress_bars.append(progress_bar)
 
-    star_label = tk.Label(frame, text="★", font=("Arial", 20), bg='grey', fg='white')
+    star_label = tk.Label(frame, text="★", font=("Arial", 20), bg='grey')
     star_label.grid(row=i, column=2, padx=5, pady=5)
     star_labels.append(star_label)
 
-button_frame = ttk.Frame(window)
-button_frame.pack(pady=10)
+reset_button = tk.Button(window, text="Reset Pins", command=reset_pins)
+reset_button.pack(pady=10)
 
-reset_button = ttk.Button(button_frame, text="Reset Pins", command=reset_pins)
-reset_button.grid(row=0, column=0, padx=10)
-
-run_button = ttk.Button(button_frame, text="Run Commands", command=lambda: Thread(target=buttonProc).start())
-run_button.grid(row=0, column=1, padx=10)
+run_button = tk.Button(window, text="Run Commands", command=lambda: Thread(target=buttonProc).start())
+run_button.pack(pady=10)
 
 window.protocol("WM_DELETE_WINDOW", on_closing)
 window.mainloop()
+
