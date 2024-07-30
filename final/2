@@ -7,9 +7,9 @@ import subprocess
 import sys
 from threading import Thread
 
-input_pin_numbers = [8, 10, 19, 33, 35, 18, 7] #used for LED, determines which output will be programmed
-output_pin_numbers = [11, 13, 15, 29, 31, 37, 16] #output used to program the CM4
-g_pins = [[8, 11], [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]] #pairs of pins (input,output)
+input_pin_numbers = [8, 10, 19, 33, 35, 18, 7]  # used for LED, determines which output will be programmed
+output_pin_numbers = [11, 13, 15, 29, 31, 37, 16]  # output used to program the CM4
+g_pins = [[8, 11], [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]]  # pairs of pins (input, output)
 
 input_image = "/home/pi/Downloads/2024-07-04-raspios-bookworm-arm64.img.xz"
 
@@ -50,60 +50,52 @@ def run_command(command, timeout=None):
         output, error = process.communicate()
         return -1, output, error
 
-def FlushFirmwareProc(index, letter) :
-    print ('FlushFirmwareProc')
+def FlushFirmwareProc(index, letter):
     command = f'sudo dd bs=4M if={input_image} of=/dev/sd{letter} conv=fsync &'
-    print (command)
     pcomm = os.system(command)
     if pcomm < 0:
-        print ("command failed\n")
+        update_status(index, "Failed", "red")
     else:
-        print ("command worked\n")#, pcomm[1], pcomm[2])
-    progress_file_name = f'/home/pi/progress{letter}'
-    progress = 0;
-    while progress < 100:
-        file = open(progress_file_name, 'r')
-        progress = int(file.read())
-        file.close()
-        update_progress(progress)
-        print("Progress = ", progress, "\n")
-        time.sleep(1)
-        
-    
-def FlushFirmware(index, letter) :
+        update_status(index, "In Progress", "blue")
+        progress_file_name = f'/home/pi/progress{letter}'
+        progress = 0
+        while progress < 100:
+            try:
+                with open(progress_file_name, 'r') as file:
+                    progress = int(file.read())
+                update_progress(index, progress)
+                time.sleep(1)
+            except FileNotFoundError:
+                time.sleep(1)
+        update_status(index, "Completed", "green")
+
+def FlushFirmware(index, letter):
     Thread(target=FlushFirmwareProc, args=(index, letter)).start()
-    
+
 # Function to handle button press
 def buttonProc():
-    index = 0
     letter = 'a'
-    for pin in g_pins :
-        if InitializeUsb(pin[0], pin[1], letter) == 0:
+    for index, pin in enumerate(g_pins):
+        if InitializeUsb(pin[0], pin[1], letter, index) == 0:
             FlushFirmware(index, letter)
             letter = chr(ord(letter) + 1)  # Increment device letter
-            index = index + 1
-            
-def InitializeUsb(in_pin, out_pin, letter):
-    if ONOFF(in_pin, out_pin, True) != 0 :
-         status_label.config(text="Pin pair: Failed", fg='red')
-         return -1
+
+def InitializeUsb(in_pin, out_pin, letter, index):
+    if ONOFF(in_pin, out_pin, True) != 0:
+        update_status(index, "Failed", "red")
+        return -1
     os.system("/home/pi/rpiboot_wraper.sh&")
-    if wait_for_device(letter) == 0 :
-        status_label.config(text="Pin pair: Success", fg='green')
-        star_label = tk.Label(frame, text="★", font=("Arial", 20), bg='green')
-        star_label.grid(row=0, column=2, padx=5, pady=5)
+    if wait_for_device(letter) == 0:
+        update_status(index, "Success", "green")
         return 0
-    status_label.config(text="Pin pair: Failed", fg='red')
+    update_status(index, "Failed", "red")
     return -1
 
 # Function to wait for the device to be ready
 def wait_for_device(letter):
     retries = 0
     fileName = f'/dev/sd{letter}'
-    print(fileName)
-
     while retries < 10:
-        #update_progress(30)
         time.sleep(2)
         if os.path.exists(fileName):
             return 0
@@ -113,9 +105,9 @@ def wait_for_device(letter):
 # Function to reset GPIO pins and UI elements
 def reset_pins():
     GPIO.output(output_pin_numbers, 0)
-    star_label.config(bg='grey')
-    progress_bar.config(value=0)
-    status_label.config(text="Not started", fg='black')
+    for i in range(len(g_pins)):
+        update_status(i, "Not started", "black")
+        update_progress(i, 0)
 
 # Function to handle window closing event
 def on_closing():
@@ -123,9 +115,14 @@ def on_closing():
     sys.exit(0)
 
 # Function to update progress bar
-def update_progress(value):
-    progress_bar.config(value=value)
+def update_progress(index, value):
+    progress_bars[index].config(value=value)
     window.update_idletasks()
+
+# Function to update status label
+def update_status(index, text, color):
+    status_labels[index].config(text=f"Pin pair {index+1}: {text}", fg=color)
+    star_labels[index].config(bg=color)
 
 # GUI setup
 window = tk.Tk()
@@ -134,14 +131,22 @@ window.title("Pin Status Monitor")
 frame = tk.Frame(window)
 frame.pack(padx=10, pady=10)
 
-status_label = tk.Label(frame, text="Pin pair: Not started")
-status_label.grid(row=0, column=0, padx=5, pady=5)
+status_labels = []
+progress_bars = []
+star_labels = []
 
-progress_bar = ttk.Progressbar(frame, orient="horizontal", length=400, mode="determinate")
-progress_bar.grid(row=0, column=1, padx=5, pady=5)
+for i in range(len(g_pins)):
+    status_label = tk.Label(frame, text=f"Pin pair {i+1}: Not started")
+    status_label.grid(row=i, column=0, padx=5, pady=5)
+    status_labels.append(status_label)
 
-star_label = tk.Label(frame, text="★", font=("Arial", 20), bg='red')
-star_label.grid(row=0, column=2, padx=5, pady=5)
+    progress_bar = ttk.Progressbar(frame, orient="horizontal", length=400, mode="determinate")
+    progress_bar.grid(row=i, column=1, padx=5, pady=5)
+    progress_bars.append(progress_bar)
+
+    star_label = tk.Label(frame, text="★", font=("Arial", 20), bg='red')
+    star_label.grid(row=i, column=2, padx=5, pady=5)
+    star_labels.append(star_label)
 
 reset_button = tk.Button(window, text="Reset Pins", command=reset_pins)
 reset_button.pack(pady=10)
