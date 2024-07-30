@@ -74,13 +74,11 @@ def FlushFirmware(index, letter):
 
 # Function to handle button press
 def buttonProc():
-    index = 0
     letter = 'a'
-    for pin in g_pins:
+    for index, pin in enumerate(g_pins):
         if InitializeUsb(pin[0], pin[1], letter, index) == 0:
             FlushFirmware(index, letter)
             letter = chr(ord(letter) + 1)  # Increment device letter
-            index += 1
 
 def InitializeUsb(in_pin, out_pin, letter, index):
     if ONOFF(in_pin, out_pin, True) != 0:
