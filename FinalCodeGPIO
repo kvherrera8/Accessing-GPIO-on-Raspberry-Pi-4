@@ -7,21 +7,18 @@ import subprocess
 import sys
 from threading import Thread
 
-input_pin_numbers = [8, 10, 19, 33, 35, 18, 7]  # used for LED, determines which output will be programmed
-output_pin_numbers = [11, 13, 15, 29, 31, 37, 16]  # output used to program the CM4
 g_pins = [[8, 11], [10, 13], [19, 15], [33, 29], [35, 31], [18, 37], [7, 16]]  # pairs of pins (input, output)
 
-input_image = sys.argv[1]#"/home/pi/Downloads/2024-07-04-raspios-bookworm-arm64.img.xz"
+input_image = sys.argv[1]  #"/home/pi/Downloads/2024-07-04-raspios-bookworm-arm64.img.xz"
 
 # Set GPIO pin numbering mode to BOARD (physical pin numbers)
 GPIO.setmode(GPIO.BOARD)
 
-# Setup GPIO input pin
-GPIO.setup(input_pin_numbers, GPIO.IN)  # Set pin as input
-
-# Setup GPIO output pin
-GPIO.setup(output_pin_numbers, GPIO.OUT)  # Set pin as output
-GPIO.output(output_pin_numbers, 0)  # Initialize pin to LOW
+# Setup GPIO input and output pins
+for in_pin, out_pin in g_pins:
+    GPIO.setup(in_pin, GPIO.IN)  # Set pin as input
+    GPIO.setup(out_pin, GPIO.OUT)  # Set pin as output
+    GPIO.output(out_pin, 0)  # Initialize pin to LOW
 
 # Function to toggle GPIO output pin based on input pin state
 def ONOFF(in_pin, out_pin, onoff_state):
@@ -53,30 +50,26 @@ def run_command(command, timeout=None):
 def FlushFirmwareProc(index, letter):
     command = f'sudo dd bs=4M if={input_image} of=/dev/sd{letter} conv=fsync status=progress 2>&1 | cat'
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if False : #process :
-        update_status(index, "Failed", "red")
-    else:
-        file_size = os.path.getsize(input_image)
-        n_bytes = 0
-        line = ""
-        update_status(index, "In Progress", "blue")
-        progress = 0
-        while True:
-            c = process.stdout.read(1).decode()
-            if not c:
-                break
-            if c == '\r':
-                print(line)
-                pos = line.find(" bytes")
-                if pos != -1:
-                    n_bytes = int(line[:pos].strip())
-                    percent = int(n_bytes * 100 // file_size + 0.5)
-                    print(f"{percent}%")
-                    update_progress(index, percent)
-                line = ""
-            else:
-                line += c
-            update_status(index, "Completed", "green")
+    file_size = os.path.getsize(input_image)
+    line = ""
+    update_status(index, "In Progress", "blue")
+    while True:
+        c = process.stdout.read(1).decode()
+        if not c:
+            break
+        if c == '\r':
+            pos = line.find(" bytes")
+            if pos != -1:
+                n_bytes = int(line[:pos].strip())
+                percent = int(n_bytes * 100 // file_size + 0.5)
+                update_progress(index, percent)
+                if percent == 100:
+                    update_status(index, "Completed", "green")
+                else:
+                    update_status(index, "In Progress", "blue")
+            line = ""
+        else:
+            line += c
 
 def FlushFirmware(index, letter):
     Thread(target=FlushFirmwareProc, args=(index, letter)).start()
@@ -84,8 +77,8 @@ def FlushFirmware(index, letter):
 # Function to handle button press
 def buttonProc():
     letter = 'a'
-    for index, pin in enumerate(g_pins):
-        if InitializeUsb(pin[0], pin[1], letter, index) == 0:
+    for index, (in_pin, out_pin) in enumerate(g_pins):
+        if InitializeUsb(in_pin, out_pin, letter, index) == 0:
             FlushFirmware(index, letter)
             letter = chr(ord(letter) + 1)  # Increment device letter
 
@@ -113,7 +106,8 @@ def wait_for_device(letter):
 
 # Function to reset GPIO pins and UI elements
 def reset_pins():
-    GPIO.output(output_pin_numbers, 0)
+    for _, out_pin in g_pins:
+        GPIO.output(out_pin, 0)
     for i in range(len(g_pins)):
         update_status(i, "Not started", "grey")
         update_progress(i, 0)
@@ -165,5 +159,3 @@ run_button.pack(pady=10)
 
 window.protocol("WM_DELETE_WINDOW", on_closing)
 window.mainloop()
-
-
